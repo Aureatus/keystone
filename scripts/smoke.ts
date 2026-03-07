@@ -38,13 +38,19 @@ const assert = (condition: unknown, message: string): void => {
   }
 };
 
+const logStep = (message: string): void => {
+  process.stdout.write(`[smoke] ${message}\n`);
+};
+
 const main = (): void => {
   const tempRoot = mkdtempSync(path.join(os.tmpdir(), "keystone-smoke-"));
   const workspaceRoot = path.join(tempRoot, "smoke-workspace");
 
   try {
+    logStep(`Creating temp workspace at ${workspaceRoot}`);
     cpSync(fixtureRoot, workspaceRoot, { recursive: true });
 
+    logStep("Writing temporary package.json");
     writeFileSync(
       path.join(workspaceRoot, "package.json"),
       `${JSON.stringify(
@@ -62,8 +68,10 @@ const main = (): void => {
       "utf8"
     );
 
+    logStep("Installing fixture dependencies");
     run(workspaceRoot, ["install"]);
 
+    logStep("Running keystone init");
     const initResult = run(workspaceRoot, [
       "x",
       "keystone",
@@ -74,6 +82,7 @@ const main = (): void => {
     assert(initResult.stdout.includes("Created .env.base"), "init did not create .env.base");
     assert(existsSync(path.join(workspaceRoot, ".env.base")), "init did not write .env.base");
 
+    logStep("Running keystone doctor");
     const doctorResult = run(workspaceRoot, [
       "x",
       "keystone",
@@ -90,6 +99,7 @@ const main = (): void => {
       "doctor did not emit the alias warning"
     );
 
+    logStep("Running keystone scan-secrets");
     const secretScanResult = run(workspaceRoot, [
       "x",
       "keystone",
@@ -102,6 +112,7 @@ const main = (): void => {
       "secret scan did not report success"
     );
 
+    logStep("Running keystone generate");
     const generateResult = run(workspaceRoot, [
       "x",
       "keystone",
@@ -118,6 +129,7 @@ const main = (): void => {
       "generate did not report client output"
     );
 
+    logStep("Validating generated outputs");
     const serverEnv = parseEnvFile(
       readFileSync(path.join(workspaceRoot, ".generated", "server.env"), "utf8")
     );
@@ -136,6 +148,7 @@ const main = (): void => {
     );
     assert(clientEnv.ACCESS_TOKEN === undefined, "client output exposed ACCESS_TOKEN");
 
+    logStep("Running keystone clear");
     run(workspaceRoot, ["x", "keystone", "clear", "--manifest", "env.manifest.ts"]);
     assert(
       !existsSync(path.join(workspaceRoot, ".generated", "server.env")),
@@ -146,8 +159,9 @@ const main = (): void => {
       "clear did not remove client env"
     );
 
-    process.stdout.write("Smoke test passed.\n");
+    process.stdout.write("[smoke] Smoke test passed.\n");
   } finally {
+    logStep("Cleaning up temp workspace");
     rmSync(tempRoot, { recursive: true, force: true });
   }
 };
