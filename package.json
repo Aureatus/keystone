@@ -1,0 +1,47 @@
+{
+  "name": "@aureatus/keystone",
+  "version": "0.1.0",
+  "description": "Manifest-driven environment tooling for multi-project workspaces",
+  "license": "MIT",
+  "homepage": "https://github.com/Aureatus/keystone#readme",
+  "bugs": {
+    "url": "https://github.com/Aureatus/keystone/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aureatus/keystone.git"
+  },
+  "type": "module",
+  "files": [
+    "README.md",
+    "src",
+    "tsconfig.json"
+  ],
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "keystone": "./src/cli.ts"
+  },
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "smoke": "bun scripts/smoke.ts",
+    "check": "bun run typecheck && bun run test && bun run smoke"
+  },
+  "keywords": [
+    "env",
+    "dotenv",
+    "manifest",
+    "tooling"
+  ],
+  "dependencies": {
+    "dotenv": "^17.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "typescript": "^5.9.3"
+  },
+  "packageManager": "bun@1.3.5"
+}
