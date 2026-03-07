@@ -150,6 +150,7 @@ Expected setup outputs:
 ## Development
 
 ```bash
+mise install
 bun install
 bun test
 bun run check
