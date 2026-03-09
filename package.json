@@ -14,6 +14,7 @@
   "type": "module",
   "files": [
     "README.md",
+    "openapi",
     "src",
     "tsconfig.json"
   ],
@@ -25,10 +26,12 @@
     "keystone": "./src/cli.ts"
   },
   "scripts": {
+    "openapi:generate": "bun scripts/generate-openapi.ts",
+    "openapi:check": "bun scripts/generate-openapi.ts --check",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "smoke": "bun scripts/smoke.ts",
-    "check": "bun run typecheck && bun run test && bun run smoke"
+    "check": "bun run typecheck && bun run openapi:check && bun run test && bun run smoke"
   },
   "keywords": [
     "env",
@@ -37,7 +40,11 @@
     "tooling"
   ],
   "dependencies": {
-    "dotenv": "^17.2.3"
+    "@asteasolutions/zod-to-openapi": "^8.4.3",
+    "dotenv": "^17.2.3",
+    "portless": "^0.5.2",
+    "yaml": "^2.8.1",
+    "zod": "^4.1.5"
   },
   "devDependencies": {
     "@types/node": "^24.5.2",

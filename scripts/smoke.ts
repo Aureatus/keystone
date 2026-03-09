@@ -140,12 +140,20 @@ const main = (): void => {
     assert(serverEnv.API_URL === "http://legacy.internal:8080", "server API_URL mismatch");
     assert(serverEnv.ACCESS_TOKEN === "super-secret-token", "server ACCESS_TOKEN mismatch");
     assert(serverEnv.PORT === "4312", "server PORT layering mismatch");
-    assert(serverEnv.APP_ORIGIN === "http://127.0.0.1:4312", "server APP_ORIGIN mismatch");
+    assert(serverEnv.API_HOST === "127.0.0.1", "server API_HOST mismatch");
+    assert(serverEnv.API_PORT === "4312", "server API_PORT mismatch");
+    assert(serverEnv.API_PUBLIC_URL === "http://api.smoke.localhost:1355", "server API_PUBLIC_URL mismatch");
+    assert(serverEnv.WEB_PUBLIC_URL === "http://web.smoke.localhost:1355", "server WEB_PUBLIC_URL mismatch");
+    assert(serverEnv.APP_ORIGIN === "http://web.smoke.localhost:1355", "server APP_ORIGIN mismatch");
+    assert(serverEnv.PGHOST === "postgres", "server PGHOST mismatch");
+    assert(serverEnv.PGPORT === "5432", "server PGPORT mismatch");
+    assert(serverEnv.DATABASE_URL === "postgres://postgres:5432", "server DATABASE_URL mismatch");
     assert(clientEnv.PUBLIC_APP_NAME === "smoke-app", "client PUBLIC_APP_NAME mismatch");
     assert(
-      clientEnv.PUBLIC_API_URL === "http://legacy.internal:8080",
+      clientEnv.PUBLIC_API_URL === "http://api.smoke.localhost:1355",
       "client PUBLIC_API_URL mismatch"
     );
+    assert(clientEnv.WEB_PUBLIC_URL === "http://web.smoke.localhost:1355", "client WEB_PUBLIC_URL mismatch");
     assert(clientEnv.ACCESS_TOKEN === undefined, "client output exposed ACCESS_TOKEN");
 
     logStep("Running keystone clear");

@@ -10,6 +10,14 @@ import {
   type EnvMap,
   writeFileIfChanged,
 } from "./env-files.ts";
+import {
+  resolveServiceTopology,
+  type ExperimentalFeatures,
+  type PortlessConfig,
+  type ResolvedService,
+  type ResolvedTopology,
+  type ServiceDefinition,
+} from "./topology.ts";
 
 export type EnvVariableDefinition = {
   aliases?: string[];
@@ -48,14 +56,19 @@ export type ManifestContext = {
   manifestPath: string;
   sourceEnv: EnvMap;
   env: EnvMap;
+  topology?: ResolvedTopology;
+  services?: Record<string, ResolvedService>;
   loadSources: () => EnvMap;
   resolvePath: (relativePath: string) => string;
 };
 
 export type EnvManifest = {
   name: string;
+  experimental?: ExperimentalFeatures;
+  portless?: PortlessConfig;
   sourceFiles?: string[];
   variables?: Record<string, EnvVariableDefinition>;
+  services?: Record<string, ServiceDefinition>;
   outputs?: ManifestOutput[];
   initFiles?: ManifestInitFile[];
   clearPaths?: string[];
@@ -149,15 +162,25 @@ export const resolveManifestContext = async (
   const baseContext = createBaseContext(command, resolvedRepoRoot, resolvedManifestPath, manifest);
   const sourceEnv = baseContext.loadSources();
   const aliasWarnings: string[] = [];
-  const env = applyVariableDefinitions(sourceEnv, manifest, baseContext, aliasWarnings);
+  const baseEnv = applyVariableDefinitions(sourceEnv, manifest, baseContext, aliasWarnings);
+  const topology =
+    command === "generate" || command === "doctor" || command === "scan-secrets"
+      ? await resolveServiceTopology(manifest, {
+          repoRoot: resolvedRepoRoot,
+          env: baseEnv,
+        })
+      : undefined;
+  const env = { ...baseEnv, ...(topology?.env ?? {}) };
 
   const context: ManifestContext = {
     ...baseContext,
     sourceEnv,
     env,
+    topology,
+    services: topology?.services,
   };
 
-  return { manifest, context, aliasWarnings };
+  return { manifest, context, aliasWarnings: [...aliasWarnings, ...(topology?.warnings ?? [])] };
 };
 
 export const runGenerate = async (manifestPath: string, repoRoot?: string) => {
@@ -300,6 +323,18 @@ export const runScanSecrets = async (manifestPath: string, repoRoot?: string) =>
   }
 
   return { errors, warnings };
+};
+
+export const runResolveTopology = async (manifestPath: string, repoRoot?: string) => {
+  const { context } = await resolveManifestContext(manifestPath, "doctor", repoRoot);
+
+  if (!context.topology) {
+    throw new Error(
+      "Manifest does not define experimental service topology. Enable `experimental.serviceTopology` and add `services`."
+    );
+  }
+
+  return context.topology;
 };
 
 export const assertFileExists = (absolutePath: string, message: string): void => {

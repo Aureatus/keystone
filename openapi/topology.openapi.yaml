@@ -1,0 +1,165 @@
+openapi: 3.1.0
+info:
+  title: Keystone Topology API
+  version: 0.1.0
+  description: Experimental API contract for resolving Keystone service topology
+    from a manifest. This schema exists so non-TypeScript consumers such as
+    Hive's Elixir backend can rely on a stable wire format even though
+    Keystone's authoring experience is TypeScript-first.
+servers:
+  - url: http://localhost:4010
+components:
+  schemas:
+    ResolveTopologyRequest:
+      type: object
+      properties:
+        manifestPath:
+          type: string
+          minLength: 1
+          description: Absolute or repo-relative path to `env.manifest.ts`.
+        repoRoot:
+          type: string
+          minLength: 1
+          description: Optional override for repository root.
+        env:
+          $ref: "#/components/schemas/EnvMap"
+      required:
+        - manifestPath
+    EnvMap:
+      type: object
+      additionalProperties:
+        type: string
+      description: Optional environment overrides applied before topology resolution.
+    ServiceEndpoint:
+      type: object
+      properties:
+        host:
+          type: string
+        port:
+          type: integer
+          exclusiveMinimum: 0
+      required:
+        - host
+        - port
+    ResolvedService:
+      type: object
+      properties:
+        name:
+          type: string
+        protocol:
+          type: string
+          enum:
+            - http
+            - https
+            - ws
+            - wss
+            - postgres
+            - redis
+            - mysql
+            - tcp
+        runtime:
+          type: string
+          enum:
+            - local-process
+            - docker-published
+            - docker-network
+        exposure:
+          type: string
+          enum:
+            - direct
+            - portless
+            - none
+        bind:
+          allOf:
+            - $ref: "#/components/schemas/ServiceEndpoint"
+            - type:
+                - object
+                - "null"
+        connect:
+          $ref: "#/components/schemas/ServiceEndpoint"
+        internalUrl:
+          type:
+            - string
+            - "null"
+        publicUrl:
+          type:
+            - string
+            - "null"
+        env:
+          $ref: "#/components/schemas/EnvMap"
+      required:
+        - name
+        - protocol
+        - runtime
+        - exposure
+        - connect
+        - env
+    PortlessAliasPlan:
+      type: object
+      properties:
+        service:
+          type: string
+        hostname:
+          type: string
+        port:
+          type: integer
+          exclusiveMinimum: 0
+      required:
+        - service
+        - hostname
+        - port
+    ResolvedTopology:
+      type: object
+      properties:
+        services:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ResolvedService"
+        env:
+          $ref: "#/components/schemas/EnvMap"
+        warnings:
+          type: array
+          items:
+            type: string
+        portlessAliases:
+          type: array
+          items:
+            $ref: "#/components/schemas/PortlessAliasPlan"
+      required:
+        - services
+        - env
+        - warnings
+        - portlessAliases
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+  parameters: {}
+paths:
+  /v1/topology/resolve:
+    post:
+      summary: Resolve service topology for a Keystone manifest
+      operationId: resolveTopology
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResolveTopologyRequest"
+      responses:
+        "200":
+          description: Resolved topology
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResolvedTopology"
+        "400":
+          description: Invalid manifest or topology request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+webhooks: {}

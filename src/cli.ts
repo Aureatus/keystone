@@ -1,8 +1,17 @@
 #!/usr/bin/env bun
 
+import { writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { runClear, runDoctor, runGenerate, runInit, runScanSecrets } from "./manifest.ts";
+import { resolvedTopologySchema } from "./openapi/topology-contract.ts";
+import {
+  runClear,
+  runDoctor,
+  runGenerate,
+  runInit,
+  runResolveTopology,
+  runScanSecrets,
+} from "./manifest.ts";
 
 const readOption = (args: string[], option: string): string | undefined => {
   const index = args.indexOf(option);
@@ -13,18 +22,60 @@ const readOption = (args: string[], option: string): string | undefined => {
   return args[index + 1];
 };
 
+const hasFlag = (args: string[], flag: string): boolean => args.includes(flag);
+
+const renderJson = (value: unknown, pretty: boolean): string =>
+  `${JSON.stringify(value, null, pretty ? 2 : undefined)}\n`;
+
+const topologyUsage =
+  "Usage: keystone topology resolve --manifest <path> [--repo-root <path>] [--json] [--output <path>] [--pretty]";
+
 const main = async (): Promise<void> => {
   const [, , command, ...rest] = process.argv;
+  const subcommand = rest[0];
+  const commandArgs = command === "topology" ? rest.slice(1) : rest;
   const manifestPath = readOption(rest, "--manifest");
   const repoRoot = readOption(rest, "--repo-root");
 
-  if (!command || !manifestPath) {
+  if (!command || !(command === "topology" ? subcommand : manifestPath)) {
     throw new Error(
-      "Usage: keystone <generate|doctor|clear|init|scan-secrets> --manifest <path> [--repo-root <path>]"
+      `Usage: keystone <generate|doctor|clear|init|scan-secrets> --manifest <path> [--repo-root <path>]\n       ${topologyUsage}`
     );
   }
 
-  const resolvedManifestPath = path.resolve(manifestPath);
+  if (command === "topology") {
+    if (subcommand !== "resolve") {
+      throw new Error(`Unknown topology command: ${subcommand ?? "<missing>"}`);
+    }
+
+    const topologyManifestPath = readOption(commandArgs, "--manifest");
+    const topologyRepoRoot = readOption(commandArgs, "--repo-root");
+    if (!topologyManifestPath) {
+      throw new Error(topologyUsage);
+    }
+
+    const resolvedManifestPath = path.resolve(topologyManifestPath);
+    const resolvedRepoRoot = topologyRepoRoot
+      ? path.resolve(topologyRepoRoot)
+      : path.dirname(resolvedManifestPath);
+    const topology = await runResolveTopology(resolvedManifestPath, resolvedRepoRoot);
+    const payload = resolvedTopologySchema.parse(topology);
+    const outputPath = readOption(commandArgs, "--output");
+    const pretty = hasFlag(commandArgs, "--pretty") || !outputPath;
+    const rendered = renderJson(payload, pretty);
+
+    if (outputPath) {
+      const resolvedOutputPath = path.resolve(outputPath);
+      writeFileSync(resolvedOutputPath, rendered, "utf8");
+      process.stdout.write(`Wrote ${resolvedOutputPath}\n`);
+      return;
+    }
+
+    process.stdout.write(rendered);
+    return;
+  }
+
+  const resolvedManifestPath = path.resolve(manifestPath as string);
   const resolvedRepoRoot = repoRoot ? path.resolve(repoRoot) : path.dirname(resolvedManifestPath);
 
   if (command === "generate") {

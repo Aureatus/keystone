@@ -144,4 +144,59 @@ describe("manifest workflows", () => {
       "Secret key SECRET_TOKEN is exposed in public output .generated/public.env"
     );
   });
+
+  test("runGenerate merges experimental service topology env into outputs", async () => {
+    const workspaceRoot = createTempWorkspace();
+    mkdirSync(path.join(workspaceRoot, ".generated"), { recursive: true });
+
+    const manifestPath = writeManifest(
+      workspaceRoot,
+      `export default {
+        name: "topology-test",
+        experimental: { serviceTopology: true },
+        services: {
+          api: {
+            protocol: "http",
+            runtime: "local-process",
+            exposure: "portless",
+            preferredPort: 4312,
+            hostEnv: "API_HOST",
+            portEnv: "API_PORT",
+            publicUrlEnv: "API_PUBLIC_URL",
+          },
+          postgres: {
+            protocol: "postgres",
+            runtime: "docker-network",
+            serviceName: "postgres",
+            connectPort: 5432,
+            urlEnv: "DATABASE_URL",
+          },
+          web: {
+            protocol: "http",
+            runtime: "local-process",
+            bindings: [
+              { env: "PUBLIC_API_URL", service: "api", from: "publicUrl" },
+              { env: "DATABASE_URL_FROM_BINDING", service: "postgres", from: "internalUrl" },
+            ],
+          },
+        },
+        outputs: [{ path: ".generated/app.env", includeKeys: ["API_HOST", "API_PORT", "API_PUBLIC_URL", "PUBLIC_API_URL", "DATABASE_URL_FROM_BINDING"] }],
+      };
+      `
+    );
+
+    const generateResult = await runGenerate(manifestPath, workspaceRoot);
+    expect(generateResult.writtenPaths).toEqual([".generated/app.env"]);
+    expect(generateResult.warnings).toEqual([]);
+
+    const outputEnv = parseEnvFile(
+      readFileSync(path.join(workspaceRoot, ".generated/app.env"), "utf8")
+    );
+
+    expect(outputEnv.API_HOST).toBe("127.0.0.1");
+    expect(outputEnv.API_PORT).toBe("4312");
+    expect(outputEnv.API_PUBLIC_URL).toBe("http://api.topology-test.localhost:1355");
+    expect(outputEnv.PUBLIC_API_URL).toBe("http://api.topology-test.localhost:1355");
+    expect(outputEnv.DATABASE_URL_FROM_BINDING).toBe("postgres://postgres:5432");
+  });
 });

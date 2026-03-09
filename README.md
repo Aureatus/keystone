@@ -2,6 +2,15 @@
 
 TypeScript-first env tooling for repos that want one manifest-driven way to load, validate, generate, and clear environment files.
 
+Keystone now also includes an experimental service-topology layer for resolving local-process, Docker-style, and Portless-exposed service endpoints before env files are generated.
+
+For consumers outside TypeScript, Keystone should be treated as having two contracts:
+
+- a TypeScript SDK exported from `@aureatus/keystone`
+- an OpenAPI wire contract at `openapi/topology.openapi.yaml` for service-to-service or cross-runtime consumption
+
+The OpenAPI file is generated from Zod schemas in `src/openapi/topology-contract.ts`.
+
 ## What it provides
 
 - `defineManifest(...)` for declaring env sources and generated outputs
@@ -11,6 +20,7 @@ TypeScript-first env tooling for repos that want one manifest-driven way to load
 - `keystone scan-secrets` for checking template hygiene and public-output leaks
 - `keystone clear` for removing generated outputs
 - shared helpers for env parsing and free-port allocation
+- experimental service topology with bundled Portless-aware public URL generation
 
 ## CLI
 
@@ -20,6 +30,9 @@ keystone generate --manifest env.manifest.ts
 keystone doctor --manifest env.manifest.ts
 keystone scan-secrets --manifest env.manifest.ts
 keystone clear --manifest env.manifest.ts
+keystone topology resolve --manifest env.manifest.ts --json
+keystone topology resolve --manifest env.manifest.ts --output topology.json
+keystone topology resolve --manifest env.manifest.ts --output topology.pretty.json --pretty
 ```
 
 ## Minimal manifest
@@ -51,6 +64,49 @@ export default defineManifest({
   ],
 });
 ```
+
+## Service topology direction
+
+Keystone's next major layer is service-aware endpoint resolution for local processes, Portless-exposed HTTP services, and Docker or Compose-backed dependencies.
+
+- design notes: `docs/service-topology.md`
+- goal: keep defaults small and documented, and make every inferred host, port, and URL easy to override
+- planned use case: let orchestrators like Hive resolve per-cell endpoints and generated env in one place
+
+The first implementation slice lives behind `experimental.serviceTopology` in the manifest and supports:
+
+- `local-process`, `docker-published`, and `docker-network` runtimes
+- `direct`, `portless`, and `none` exposure modes
+- cross-service env bindings without encoding startup order
+- bundled Portless hostname and public-URL formatting for HTTP services
+
+The intended long-term split is:
+
+- TypeScript repos can use the SDK directly
+- non-TypeScript runtimes such as Hive's Elixir backend can consume the topology output through the OpenAPI contract
+
+Useful commands:
+
+```bash
+bun run openapi:generate
+bun run openapi:check
+```
+
+For cross-runtime consumers that do not want to call the TypeScript API directly, Keystone also exposes a one-shot CLI resolver:
+
+```bash
+keystone topology resolve --manifest env.manifest.ts --json
+```
+
+That command prints a JSON payload shaped like `ResolvedTopology` from the generated OpenAPI contract.
+
+Output options:
+
+- `--json` prints the resolved topology to stdout
+- `--output <path>` writes the resolved topology to a file
+- `--pretty` pretty-prints JSON when writing to a file
+
+Example output from the smoke fixture is checked in at `fixtures/smoke-workspace/topology.example.json`.
 
 ## Agent bootstrap
 
@@ -152,6 +208,7 @@ Expected setup outputs:
 ```bash
 mise install
 bun install
+bun run openapi:generate
 bun test
 bun run check
 ```
