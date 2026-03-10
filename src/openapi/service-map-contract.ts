@@ -5,7 +5,38 @@ extendZodWithOpenApi(z);
 
 const envMapSchema = z.record(z.string(), z.string()).openapi("EnvMap");
 
-export const resolveTopologyRequestSchema = z
+export const serviceMapServiceContextSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    bindHost: z.string().optional(),
+    bindPort: z.number().int().positive().optional(),
+    connectHost: z.string().optional(),
+    connectPort: z.number().int().positive().optional(),
+    preferredPort: z.number().int().positive().optional(),
+    publicUrl: z.string().optional(),
+    portlessAlias: z.string().optional(),
+    serviceName: z.string().optional(),
+  })
+  .openapi("ServiceMapServiceContext");
+
+export const serviceMapContextSchema = z
+  .object({
+    projectName: z.string().optional(),
+    cellId: z.string().optional(),
+    cellName: z.string().optional(),
+    worktreePath: z.string().optional(),
+    portless: z
+      .object({
+        proxyPort: z.number().int().positive().optional(),
+        https: z.boolean().optional(),
+        rootName: z.string().optional(),
+      })
+      .optional(),
+    services: z.record(z.string(), serviceMapServiceContextSchema).optional(),
+  })
+  .openapi("ServiceMapContext");
+
+export const resolveServiceMapRequestSchema = z
   .object({
     manifestPath: z
       .string()
@@ -18,9 +49,12 @@ export const resolveTopologyRequestSchema = z
       .openapi({ description: "Optional override for repository root." }),
     env: envMapSchema
       .optional()
-      .openapi({ description: "Optional environment overrides applied before topology resolution." }),
+      .openapi({ description: "Optional environment overrides applied before service-map resolution." }),
+    context: serviceMapContextSchema
+      .optional()
+      .openapi({ description: "Structured runtime context used to resolve the service map." }),
   })
-  .openapi("ResolveTopologyRequest");
+  .openapi("ResolveServiceMapRequest");
 
 export const serviceEndpointSchema = z
   .object({
@@ -51,14 +85,14 @@ export const portlessAliasPlanSchema = z
   })
   .openapi("PortlessAliasPlan");
 
-export const resolvedTopologySchema = z
+export const resolvedServiceMapSchema = z
   .object({
     services: z.record(z.string(), resolvedServiceSchema),
     env: envMapSchema,
     warnings: z.array(z.string()),
     portlessAliases: z.array(portlessAliasPlanSchema),
   })
-  .openapi("ResolvedTopology");
+  .openapi("ResolvedServiceMap");
 
 export const errorResponseSchema = z
   .object({
@@ -66,46 +100,48 @@ export const errorResponseSchema = z
   })
   .openapi("ErrorResponse");
 
-export type ResolveTopologyRequest = z.infer<typeof resolveTopologyRequestSchema>;
-export type ResolvedTopologyResponse = z.infer<typeof resolvedTopologySchema>;
+export type ResolveServiceMapRequest = z.infer<typeof resolveServiceMapRequestSchema>;
+export type ResolvedServiceMapResponse = z.infer<typeof resolvedServiceMapSchema>;
 export type ErrorResponse = z.infer<typeof errorResponseSchema>;
 
-export const createTopologyOpenApiDocument = () => {
+export const createServiceMapOpenApiDocument = () => {
   const registry = new OpenAPIRegistry();
 
-  registry.register("ResolveTopologyRequest", resolveTopologyRequestSchema);
+  registry.register("ServiceMapServiceContext", serviceMapServiceContextSchema);
+  registry.register("ServiceMapContext", serviceMapContextSchema);
+  registry.register("ResolveServiceMapRequest", resolveServiceMapRequestSchema);
   registry.register("ServiceEndpoint", serviceEndpointSchema);
   registry.register("ResolvedService", resolvedServiceSchema);
   registry.register("PortlessAliasPlan", portlessAliasPlanSchema);
-  registry.register("ResolvedTopology", resolvedTopologySchema);
+  registry.register("ResolvedServiceMap", resolvedServiceMapSchema);
   registry.register("ErrorResponse", errorResponseSchema);
 
   registry.registerPath({
     method: "post",
-    path: "/v1/topology/resolve",
-    summary: "Resolve service topology for a Keystone manifest",
-    operationId: "resolveTopology",
+    path: "/v1/service-map/resolve",
+    summary: "Resolve a service map for a Keystone manifest",
+    operationId: "resolveServiceMap",
     request: {
       body: {
         required: true,
         content: {
           "application/json": {
-            schema: resolveTopologyRequestSchema,
+            schema: resolveServiceMapRequestSchema,
           },
         },
       },
     },
     responses: {
       200: {
-        description: "Resolved topology",
+        description: "Resolved service map",
         content: {
           "application/json": {
-            schema: resolvedTopologySchema,
+            schema: resolvedServiceMapSchema,
           },
         },
       },
       400: {
-        description: "Invalid manifest or topology request",
+        description: "Invalid manifest or service-map request",
         content: {
           "application/json": {
             schema: errorResponseSchema,
@@ -120,10 +156,10 @@ export const createTopologyOpenApiDocument = () => {
   return generator.generateDocument({
     openapi: "3.1.0",
     info: {
-      title: "Keystone Topology API",
+      title: "Keystone Service Map API",
       version: "0.1.0",
       description:
-        "Experimental API contract for resolving Keystone service topology from a manifest. This schema exists so non-TypeScript consumers such as Hive's Elixir backend can rely on a stable wire format even though Keystone's authoring experience is TypeScript-first.",
+        "Experimental API contract for resolving a Keystone service map from a manifest. This schema exists so non-TypeScript consumers such as Hive's Elixir backend can rely on a stable wire format even though Keystone's authoring experience is TypeScript-first.",
     },
     servers: [{ url: "http://localhost:4010" }],
   });

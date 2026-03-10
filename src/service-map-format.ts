@@ -1,6 +1,6 @@
 import { formatUrl } from "portless";
 
-import type { ServiceProtocol } from "./topology.ts";
+import type { ServiceProtocol } from "./service-map.ts";
 
 const DEFAULT_PORTS: Partial<Record<ServiceProtocol, number>> = {
   http: 80,

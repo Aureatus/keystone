@@ -1,4 +1,4 @@
-# Service Topology Direction
+# Service Map Direction
 
 This document describes the planned service-level model for Keystone.
 
@@ -7,7 +7,7 @@ Status: the first experimental slice is now implemented in Keystone for manifest
 For cross-runtime adoption, treat Keystone as having two public surfaces:
 
 - the TypeScript SDK exported from `src/`
-- the OpenAPI contract in `openapi/topology.openapi.yaml`
+- the OpenAPI contract in `openapi/service-map.openapi.yaml`
 
 The OpenAPI contract is the intended bridge for consumers like Hive's Elixir backend.
 It should be generated from TypeScript-first Zod schemas rather than maintained by hand.
@@ -211,19 +211,27 @@ Hive should be able to consume Keystone through an SDK rather than reimplementin
 Planned SDK shape:
 
 ```ts
-resolveCellTopology(...)
+resolveCellServiceMap(...)
 generateCellEnv(...)
 getPortlessAliases(...)
 getServiceEndpoints(...)
 ```
 
-An equivalent wire-level contract should be kept in sync through `openapi/topology.openapi.yaml`, with the main external response shape centered on `ResolvedTopology`.
-In Keystone, that file should be generated from `src/openapi/topology-contract.ts` and checked in CI.
+An equivalent wire-level contract should be kept in sync through `openapi/service-map.openapi.yaml`, with the main external response shape centered on `ResolvedServiceMap`.
+In Keystone, that file should be generated from `src/openapi/service-map-contract.ts` and checked in CI.
+
+The implementation direction is now:
+
+- resolve a service map from `manifest + structured context`
+- return a `ResolvedServiceMap` object as the primary contract
+- optionally render env maps or env files from that resolved service map via helper functions
+
+This keeps the core model structured for orchestrators like Hive while still supporting traditional env-file workflows.
 
 That would let Hive:
 
 1. create a worktree cell
-2. resolve service topology for that cell
+2. resolve the service map for that cell
 3. start local processes and/or Docker services
 4. register Portless aliases for HTTP services
 5. write generated env files for the cell
@@ -244,7 +252,7 @@ If a user can understand the default in one sentence and override it in one fiel
 
 ## Recommended next implementation step
 
-Add a documented experimental service-topology layer to Keystone with:
+Add a documented experimental service-map layer to Keystone with:
 
 - service definitions
 - runtime and exposure modes

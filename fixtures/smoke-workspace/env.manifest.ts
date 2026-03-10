@@ -3,7 +3,7 @@ import { defineManifest, pickEnv } from "@aureatus/keystone";
 export default defineManifest({
   name: "smoke-workspace",
   experimental: {
-    serviceTopology: true,
+    serviceMap: true,
   },
   portless: {
     rootName: "smoke",

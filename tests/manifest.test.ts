@@ -145,15 +145,15 @@ describe("manifest workflows", () => {
     );
   });
 
-  test("runGenerate merges experimental service topology env into outputs", async () => {
+  test("runGenerate merges experimental service map env into outputs", async () => {
     const workspaceRoot = createTempWorkspace();
     mkdirSync(path.join(workspaceRoot, ".generated"), { recursive: true });
 
     const manifestPath = writeManifest(
       workspaceRoot,
       `export default {
-        name: "topology-test",
-        experimental: { serviceTopology: true },
+        name: "service-map-test",
+        experimental: { serviceMap: true },
         services: {
           api: {
             protocol: "http",
@@ -195,8 +195,8 @@ describe("manifest workflows", () => {
 
     expect(outputEnv.API_HOST).toBe("127.0.0.1");
     expect(outputEnv.API_PORT).toBe("4312");
-    expect(outputEnv.API_PUBLIC_URL).toBe("http://api.topology-test.localhost:1355");
-    expect(outputEnv.PUBLIC_API_URL).toBe("http://api.topology-test.localhost:1355");
+    expect(outputEnv.API_PUBLIC_URL).toBe("http://api.service-map-test.localhost:1355");
+    expect(outputEnv.PUBLIC_API_URL).toBe("http://api.service-map-test.localhost:1355");
     expect(outputEnv.DATABASE_URL_FROM_BINDING).toBe("postgres://postgres:5432");
   });
 });

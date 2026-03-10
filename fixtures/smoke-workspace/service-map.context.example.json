@@ -1,0 +1,19 @@
+{
+  "cellName": "smoke-cell",
+  "portless": {
+    "rootName": "smoke-cell",
+    "proxyPort": 1455
+  },
+  "services": {
+    "api": {
+      "preferredPort": 5412
+    },
+    "web": {
+      "preferredPort": 5413
+    },
+    "postgres": {
+      "connectHost": "postgres-service",
+      "connectPort": 6432
+    }
+  }
+}

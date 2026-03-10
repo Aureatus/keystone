@@ -2,14 +2,14 @@
 
 TypeScript-first env tooling for repos that want one manifest-driven way to load, validate, generate, and clear environment files.
 
-Keystone now also includes an experimental service-topology layer for resolving local-process, Docker-style, and Portless-exposed service endpoints before env files are generated.
+Keystone now also includes an experimental service-map layer for resolving local-process, Docker-style, and Portless-exposed service endpoints before env files are generated.
 
 For consumers outside TypeScript, Keystone should be treated as having two contracts:
 
 - a TypeScript SDK exported from `@aureatus/keystone`
-- an OpenAPI wire contract at `openapi/topology.openapi.yaml` for service-to-service or cross-runtime consumption
+- an OpenAPI wire contract at `openapi/service-map.openapi.yaml` for service-to-service or cross-runtime consumption
 
-The OpenAPI file is generated from Zod schemas in `src/openapi/topology-contract.ts`.
+The OpenAPI file is generated from Zod schemas in `src/openapi/service-map-contract.ts`.
 
 ## What it provides
 
@@ -20,7 +20,7 @@ The OpenAPI file is generated from Zod schemas in `src/openapi/topology-contract
 - `keystone scan-secrets` for checking template hygiene and public-output leaks
 - `keystone clear` for removing generated outputs
 - shared helpers for env parsing and free-port allocation
-- experimental service topology with bundled Portless-aware public URL generation
+- experimental service map support with bundled Portless-aware public URL generation
 
 ## CLI
 
@@ -30,9 +30,10 @@ keystone generate --manifest env.manifest.ts
 keystone doctor --manifest env.manifest.ts
 keystone scan-secrets --manifest env.manifest.ts
 keystone clear --manifest env.manifest.ts
-keystone topology resolve --manifest env.manifest.ts --json
-keystone topology resolve --manifest env.manifest.ts --output topology.json
-keystone topology resolve --manifest env.manifest.ts --output topology.pretty.json --pretty
+keystone service-map resolve --manifest env.manifest.ts --json
+keystone service-map resolve --manifest env.manifest.ts --context service-map.context.json --json
+keystone service-map resolve --manifest env.manifest.ts --output service-map.json
+keystone service-map resolve --manifest env.manifest.ts --output service-map.pretty.json --pretty
 ```
 
 ## Minimal manifest
@@ -65,15 +66,15 @@ export default defineManifest({
 });
 ```
 
-## Service topology direction
+## Service Map Direction
 
 Keystone's next major layer is service-aware endpoint resolution for local processes, Portless-exposed HTTP services, and Docker or Compose-backed dependencies.
 
-- design notes: `docs/service-topology.md`
+- design notes: `docs/service-map.md`
 - goal: keep defaults small and documented, and make every inferred host, port, and URL easy to override
 - planned use case: let orchestrators like Hive resolve per-cell endpoints and generated env in one place
 
-The first implementation slice lives behind `experimental.serviceTopology` in the manifest and supports:
+The first implementation slice lives behind `experimental.serviceMap` in the manifest and supports:
 
 - `local-process`, `docker-published`, and `docker-network` runtimes
 - `direct`, `portless`, and `none` exposure modes
@@ -83,7 +84,7 @@ The first implementation slice lives behind `experimental.serviceTopology` in th
 The intended long-term split is:
 
 - TypeScript repos can use the SDK directly
-- non-TypeScript runtimes such as Hive's Elixir backend can consume the topology output through the OpenAPI contract
+- non-TypeScript runtimes such as Hive's Elixir backend can consume the service-map output through the OpenAPI contract
 
 Useful commands:
 
@@ -95,18 +96,52 @@ bun run openapi:check
 For cross-runtime consumers that do not want to call the TypeScript API directly, Keystone also exposes a one-shot CLI resolver:
 
 ```bash
-keystone topology resolve --manifest env.manifest.ts --json
+keystone service-map resolve --manifest env.manifest.ts --json
 ```
 
-That command prints a JSON payload shaped like `ResolvedTopology` from the generated OpenAPI contract.
+That command prints a JSON payload shaped like `ResolvedServiceMap` from the generated OpenAPI contract.
 
 Output options:
 
-- `--json` prints the resolved topology to stdout
-- `--output <path>` writes the resolved topology to a file
+- `--context <path>` loads a structured JSON context file for cell/runtime-specific service-map inputs
+- `--json` prints the resolved service map to stdout
+- `--output <path>` writes the resolved service map to a file
 - `--pretty` pretty-prints JSON when writing to a file
 
-Example output from the smoke fixture is checked in at `fixtures/smoke-workspace/topology.example.json`.
+Example output from the smoke fixture is checked in at `fixtures/smoke-workspace/service-map.example.json`.
+An example structured context file is checked in at `fixtures/smoke-workspace/service-map.context.example.json`.
+A context-resolved output example is checked in at `fixtures/smoke-workspace/service-map.context.resolved.json`.
+
+SDK usage:
+
+```ts
+import {
+  renderServiceEnv,
+  renderServiceMapEnvFile,
+  resolveServiceMap,
+} from "@aureatus/keystone";
+
+const serviceMap = await resolveServiceMap(manifest, {
+  repoRoot: process.cwd(),
+  context: {
+    cellName: "auth-fix",
+    portless: { rootName: "auth-fix" },
+    services: {
+      api: { preferredPort: 5512 },
+      web: { preferredPort: 5513 },
+    },
+  },
+});
+
+if (!serviceMap) {
+  throw new Error("Service map is not enabled for this manifest.");
+}
+
+const apiEnv = renderServiceEnv(serviceMap, "api");
+const serviceMapEnvFile = renderServiceMapEnvFile(serviceMap, {
+  header: ["# Generated by Keystone"],
+});
+```
 
 ## Agent bootstrap
 

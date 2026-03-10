@@ -2,7 +2,7 @@ import { parseHostname } from "portless";
 
 import type { EnvMap } from "./env-files.ts";
 import { findFreePort } from "./ports.ts";
-import { buildInternalUrl, buildPortlessUrl, supportsPortlessExposure } from "./topology-format.ts";
+import { buildInternalUrl, buildPortlessUrl, supportsPortlessExposure } from "./service-map-format.ts";
 
 export type ServiceProtocol =
   | "http"
@@ -68,8 +68,29 @@ export type PortlessConfig = {
   rootName?: string;
 };
 
+export type ServiceMapServiceContext = {
+  enabled?: boolean;
+  bindHost?: string;
+  bindPort?: number;
+  connectHost?: string;
+  connectPort?: number;
+  preferredPort?: number;
+  publicUrl?: string;
+  portlessAlias?: string;
+  serviceName?: string;
+};
+
+export type ServiceMapContext = {
+  projectName?: string;
+  cellId?: string;
+  cellName?: string;
+  worktreePath?: string;
+  portless?: PortlessConfig;
+  services?: Record<string, ServiceMapServiceContext>;
+};
+
 export type ExperimentalFeatures = {
-  serviceTopology?: boolean;
+  serviceMap?: boolean;
 };
 
 export type PortlessAliasPlan = {
@@ -96,23 +117,24 @@ export type ResolvedService = {
   env: EnvMap;
 };
 
-export type ResolvedTopology = {
+export type ResolvedServiceMap = {
   services: Record<string, ResolvedService>;
   env: EnvMap;
   warnings: string[];
   portlessAliases: PortlessAliasPlan[];
 };
 
-export type TopologyManifest = {
+export type ServiceMapManifest = {
   name: string;
   services?: Record<string, ServiceDefinition>;
   portless?: PortlessConfig;
   experimental?: ExperimentalFeatures;
 };
 
-type ResolveTopologyInput = {
+export type ResolveServiceMapInput = {
   repoRoot: string;
-  env: EnvMap;
+  env?: EnvMap;
+  context?: ServiceMapContext;
 };
 
 const DEFAULT_PORTLESS_PROXY_PORT = 1355;
@@ -157,28 +179,38 @@ const readOverridePort = (env: EnvMap, key: string | undefined): number | undefi
   return parsed;
 };
 
-const resolvePortlessSettings = (manifest: TopologyManifest, env: EnvMap) => ({
-  proxyPort: readOverridePort(env, "PORTLESS_PORT") ?? manifest.portless?.proxyPort ?? DEFAULT_PORTLESS_PROXY_PORT,
-  https: parseBoolean(env.PORTLESS_HTTPS) ?? manifest.portless?.https ?? false,
-  rootName: manifest.portless?.rootName ?? manifest.name,
+const resolvePortlessSettings = (manifest: ServiceMapManifest, input: ResolveServiceMapInput) => ({
+  proxyPort:
+    input.context?.portless?.proxyPort ??
+    readOverridePort(input.env ?? {}, "PORTLESS_PORT") ??
+    manifest.portless?.proxyPort ??
+    DEFAULT_PORTLESS_PROXY_PORT,
+  https:
+    input.context?.portless?.https ??
+    parseBoolean(input.env?.PORTLESS_HTTPS) ??
+    manifest.portless?.https ??
+    false,
+  rootName: input.context?.portless?.rootName ?? manifest.portless?.rootName ?? manifest.name,
 });
 
 const normalizeExposure = (service: ServiceDefinition): ServiceExposure => service.exposure ?? "direct";
 
 const makePortlessHostname = (
-  manifest: TopologyManifest,
+  manifest: ServiceMapManifest,
   serviceName: string,
   service: ServiceDefinition,
-  env: EnvMap
+  input: ResolveServiceMapInput
 ): string => {
-  const override = readOverride(env, service.overrideEnv?.publicUrl);
+  const contextService = input.context?.services?.[serviceName];
+  const override =
+    contextService?.publicUrl ?? readOverride(input.env ?? {}, service.overrideEnv?.publicUrl);
   if (override) {
     const parsed = new URL(override);
     return parseHostname(parsed.hostname);
   }
 
-  const rootName = resolvePortlessSettings(manifest, env).rootName;
-  return parseHostname(service.portlessAlias ?? `${serviceName}.${rootName}`);
+  const rootName = resolvePortlessSettings(manifest, input).rootName;
+  return parseHostname(contextService?.portlessAlias ?? service.portlessAlias ?? `${serviceName}.${rootName}`);
 };
 
 const buildSelfEnv = (service: ServiceDefinition, resolved: ResolvedService): EnvMap => {
@@ -223,33 +255,60 @@ const readBindingSource = (service: ResolvedService, source: ServiceBindingSourc
 };
 
 const resolveLocalProcess = async (
+  serviceName: string,
   service: ServiceDefinition,
-  env: EnvMap,
+  input: ResolveServiceMapInput,
   usedPorts: Set<number>
 ) => {
+  const env = input.env ?? {};
+  const contextService = input.context?.services?.[serviceName];
   const overrideBindHost = readOverride(env, service.overrideEnv?.bindHost);
   const overrideConnectHost = readOverride(env, service.overrideEnv?.connectHost);
   const overrideBindPort = readOverridePort(env, service.overrideEnv?.bindPort);
   const overrideConnectPort = readOverridePort(env, service.overrideEnv?.connectPort);
 
-  const bindHost = overrideBindHost ?? service.bindHost ?? "127.0.0.1";
-  const connectHost = overrideConnectHost ?? service.connectHost ?? bindHost ?? "127.0.0.1";
+  const bindHost = contextService?.bindHost ?? overrideBindHost ?? service.bindHost ?? "127.0.0.1";
+  const connectHost =
+    contextService?.connectHost ?? overrideConnectHost ?? service.connectHost ?? bindHost ?? "127.0.0.1";
   const preferredPort =
-    overrideBindPort ?? overrideConnectPort ?? service.bindPort ?? service.connectPort ?? service.preferredPort ?? 4000;
+    contextService?.bindPort ??
+    contextService?.connectPort ??
+    contextService?.preferredPort ??
+    overrideBindPort ??
+    overrideConnectPort ??
+    service.bindPort ??
+    service.connectPort ??
+    service.preferredPort ??
+    4000;
   const bindPort = await findFreePort(preferredPort, usedPorts);
   usedPorts.add(bindPort);
 
   return {
     bind: { host: bindHost, port: bindPort },
-    connect: { host: connectHost, port: overrideConnectPort ?? service.connectPort ?? bindPort },
+    connect: {
+      host: connectHost,
+      port: contextService?.connectPort ?? overrideConnectPort ?? service.connectPort ?? bindPort,
+    },
   };
 };
 
-const resolveDockerPublished = (service: ServiceDefinition, env: EnvMap) => {
+const resolveDockerPublished = (
+  serviceName: string,
+  service: ServiceDefinition,
+  input: ResolveServiceMapInput
+) => {
+  const env = input.env ?? {};
+  const contextService = input.context?.services?.[serviceName];
   const connectHost =
-    readOverride(env, service.overrideEnv?.connectHost) ?? service.connectHost ?? "127.0.0.1";
+    contextService?.connectHost ??
+    readOverride(env, service.overrideEnv?.connectHost) ??
+    service.connectHost ??
+    "127.0.0.1";
   const connectPort =
-    readOverridePort(env, service.overrideEnv?.connectPort) ?? service.connectPort ?? service.bindPort;
+    contextService?.connectPort ??
+    readOverridePort(env, service.overrideEnv?.connectPort) ??
+    service.connectPort ??
+    service.bindPort;
 
   if (!connectPort) {
     throw new Error("docker-published services require connectPort or bindPort");
@@ -260,11 +319,23 @@ const resolveDockerPublished = (service: ServiceDefinition, env: EnvMap) => {
   };
 };
 
-const resolveDockerNetwork = (service: ServiceDefinition, env: EnvMap) => {
+const resolveDockerNetwork = (
+  serviceName: string,
+  service: ServiceDefinition,
+  input: ResolveServiceMapInput
+) => {
+  const env = input.env ?? {};
+  const contextService = input.context?.services?.[serviceName];
   const connectHost =
-    readOverride(env, service.overrideEnv?.connectHost) ?? service.connectHost ?? service.serviceName;
+    contextService?.connectHost ??
+    readOverride(env, service.overrideEnv?.connectHost) ??
+    service.connectHost ??
+    contextService?.serviceName ??
+    service.serviceName;
   const connectPort =
-    readOverridePort(env, service.overrideEnv?.connectPort) ?? service.connectPort;
+    contextService?.connectPort ??
+    readOverridePort(env, service.overrideEnv?.connectPort) ??
+    service.connectPort;
 
   if (!connectHost) {
     throw new Error("docker-network services require connectHost or serviceName");
@@ -279,11 +350,11 @@ const resolveDockerNetwork = (service: ServiceDefinition, env: EnvMap) => {
   };
 };
 
-export const resolveServiceTopology = async (
-  manifest: TopologyManifest,
-  input: ResolveTopologyInput
-): Promise<ResolvedTopology | undefined> => {
-  if (!manifest.experimental?.serviceTopology || !manifest.services) {
+export const resolveServiceMap = async (
+  manifest: ServiceMapManifest,
+  input: ResolveServiceMapInput
+): Promise<ResolvedServiceMap | undefined> => {
+  if (!manifest.experimental?.serviceMap || !manifest.services) {
     return undefined;
   }
 
@@ -292,10 +363,11 @@ export const resolveServiceTopology = async (
   const usedPorts = new Set<number>();
   const services: Record<string, ResolvedService> = {};
   const portlessAliases: PortlessAliasPlan[] = [];
-  const portlessSettings = resolvePortlessSettings(manifest, input.env);
+  const portlessSettings = resolvePortlessSettings(manifest, input);
 
   for (const [serviceName, service] of Object.entries(manifest.services)) {
-    if (service.enabled === false) {
+    const contextService = input.context?.services?.[serviceName];
+    if (contextService?.enabled === false || (contextService?.enabled === undefined && service.enabled === false)) {
       continue;
     }
 
@@ -306,10 +378,10 @@ export const resolveServiceTopology = async (
 
     const endpoint =
       service.runtime === "local-process"
-        ? await resolveLocalProcess(service, input.env, usedPorts)
+        ? await resolveLocalProcess(serviceName, service, input, usedPorts)
         : service.runtime === "docker-published"
-          ? resolveDockerPublished(service, input.env)
-          : resolveDockerNetwork(service, input.env);
+          ? resolveDockerPublished(serviceName, service, input)
+          : resolveDockerNetwork(serviceName, service, input);
 
     if (exposure === "portless" && service.runtime === "docker-network") {
       throw new Error(`Service ${serviceName} cannot use Portless exposure with docker-network runtime`);
@@ -321,9 +393,10 @@ export const resolveServiceTopology = async (
       endpoint.connect.port
     );
 
-    let publicUrl = readOverride(input.env, service.overrideEnv?.publicUrl) ?? service.publicBaseUrl;
+    let publicUrl =
+      contextService?.publicUrl ?? readOverride(input.env ?? {}, service.overrideEnv?.publicUrl) ?? service.publicBaseUrl;
     if (!publicUrl && exposure === "portless") {
-      const hostname = makePortlessHostname(manifest, serviceName, service, input.env);
+      const hostname = makePortlessHostname(manifest, serviceName, service, input);
       publicUrl = buildPortlessUrl(
         service.protocol as Extract<ServiceProtocol, "http" | "https" | "ws" | "wss">,
         hostname,
@@ -361,7 +434,8 @@ export const resolveServiceTopology = async (
   }
 
   for (const [serviceName, service] of Object.entries(manifest.services)) {
-    if (service.enabled === false) {
+    const contextService = input.context?.services?.[serviceName];
+    if (contextService?.enabled === false || (contextService?.enabled === undefined && service.enabled === false)) {
       continue;
     }
 
@@ -390,4 +464,16 @@ export const resolveServiceTopology = async (
   }
 
   return { services, env, warnings, portlessAliases };
+};
+
+export const renderServiceMapEnv = (serviceMap: ResolvedServiceMap): EnvMap => ({ ...serviceMap.env });
+
+export const renderServiceEnv = (serviceMap: ResolvedServiceMap, serviceName: string): EnvMap => {
+  const service = serviceMap.services[serviceName];
+
+  if (!service) {
+    throw new Error(`Unknown service: ${serviceName}`);
+  }
+
+  return { ...service.env };
 };

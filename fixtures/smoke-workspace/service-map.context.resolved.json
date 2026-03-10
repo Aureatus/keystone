@@ -1,0 +1,89 @@
+{
+  "services": {
+    "api": {
+      "name": "api",
+      "protocol": "http",
+      "runtime": "local-process",
+      "exposure": "portless",
+      "bind": {
+        "host": "127.0.0.1",
+        "port": 5412
+      },
+      "connect": {
+        "host": "127.0.0.1",
+        "port": 5412
+      },
+      "internalUrl": "http://127.0.0.1:5412",
+      "publicUrl": "http://api.smoke-cell.localhost:1455",
+      "env": {
+        "API_HOST": "127.0.0.1",
+        "API_PORT": "5412",
+        "API_INTERNAL_URL": "http://127.0.0.1:5412",
+        "API_PUBLIC_URL": "http://api.smoke-cell.localhost:1455",
+        "PUBLIC_API_URL": "http://api.smoke-cell.localhost:1455"
+      }
+    },
+    "web": {
+      "name": "web",
+      "protocol": "http",
+      "runtime": "local-process",
+      "exposure": "portless",
+      "bind": {
+        "host": "127.0.0.1",
+        "port": 5413
+      },
+      "connect": {
+        "host": "127.0.0.1",
+        "port": 5413
+      },
+      "internalUrl": "http://127.0.0.1:5413",
+      "publicUrl": "http://web.smoke-cell.localhost:1455",
+      "env": {
+        "WEB_PUBLIC_URL": "http://web.smoke-cell.localhost:1455",
+        "APP_ORIGIN": "http://web.smoke-cell.localhost:1455"
+      }
+    },
+    "postgres": {
+      "name": "postgres",
+      "protocol": "postgres",
+      "runtime": "docker-network",
+      "exposure": "direct",
+      "connect": {
+        "host": "postgres-service",
+        "port": 6432
+      },
+      "internalUrl": "postgres://postgres-service:6432",
+      "publicUrl": "postgres://postgres-service:6432",
+      "env": {
+        "PGHOST": "postgres-service",
+        "PGPORT": "6432",
+        "DATABASE_URL": "postgres://postgres-service:6432"
+      }
+    }
+  },
+  "env": {
+    "API_HOST": "127.0.0.1",
+    "API_PORT": "5412",
+    "API_INTERNAL_URL": "http://127.0.0.1:5412",
+    "API_PUBLIC_URL": "http://api.smoke-cell.localhost:1455",
+    "WEB_PUBLIC_URL": "http://web.smoke-cell.localhost:1455",
+    "PGHOST": "postgres-service",
+    "PGPORT": "6432",
+    "DATABASE_URL": "postgres://postgres-service:6432",
+    "PUBLIC_API_URL": "http://api.smoke-cell.localhost:1455",
+    "APP_ORIGIN": "http://web.smoke-cell.localhost:1455"
+  },
+  "warnings": [],
+  "portlessAliases": [
+    {
+      "service": "api",
+      "hostname": "api.smoke-cell.localhost",
+      "port": 5412
+    },
+    {
+      "service": "web",
+      "hostname": "web.smoke-cell.localhost",
+      "port": 5413
+    }
+  ]
+}

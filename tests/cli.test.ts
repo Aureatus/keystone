@@ -18,7 +18,7 @@ afterEach(() => {
 });
 
 describe("cli", () => {
-  test("topology resolve prints validated JSON", () => {
+  test("service-map resolve prints validated JSON", () => {
     const workspaceRoot = createTempWorkspace();
     const manifestPath = path.join(workspaceRoot, "env.manifest.ts");
 
@@ -26,7 +26,7 @@ describe("cli", () => {
       manifestPath,
       `export default {
         name: "cli-test",
-        experimental: { serviceTopology: true },
+        experimental: { serviceMap: true },
         services: {
           api: {
             protocol: "http",
@@ -47,7 +47,7 @@ describe("cli", () => {
       [
         "bun",
         "src/cli.ts",
-        "topology",
+        "service-map",
         "resolve",
         "--manifest",
         manifestPath,
@@ -72,16 +72,16 @@ describe("cli", () => {
     expect(payload.portlessAliases[0]?.hostname).toBe("api.cli-test.localhost");
   });
 
-  test("topology resolve writes JSON to an output file", () => {
+  test("service-map resolve writes JSON to an output file", () => {
     const workspaceRoot = createTempWorkspace();
     const manifestPath = path.join(workspaceRoot, "env.manifest.ts");
-    const outputPath = path.join(workspaceRoot, "topology.json");
+    const outputPath = path.join(workspaceRoot, "service-map.json");
 
     writeFileSync(
       manifestPath,
       `export default {
         name: "cli-output-test",
-        experimental: { serviceTopology: true },
+        experimental: { serviceMap: true },
         services: {
           api: {
             protocol: "http",
@@ -100,7 +100,7 @@ describe("cli", () => {
       [
         "bun",
         "src/cli.ts",
-        "topology",
+        "service-map",
         "resolve",
         "--manifest",
         manifestPath,
@@ -128,16 +128,16 @@ describe("cli", () => {
     expect(payload.services.api.publicUrl).toBe("http://api.cli-output-test.localhost:1355");
   });
 
-  test("topology resolve pretty-prints to an output file when requested", () => {
+  test("service-map resolve pretty-prints to an output file when requested", () => {
     const workspaceRoot = createTempWorkspace();
     const manifestPath = path.join(workspaceRoot, "env.manifest.ts");
-    const outputPath = path.join(workspaceRoot, "topology.pretty.json");
+    const outputPath = path.join(workspaceRoot, "service-map.pretty.json");
 
     writeFileSync(
       manifestPath,
       `export default {
         name: "cli-pretty-test",
-        experimental: { serviceTopology: true },
+        experimental: { serviceMap: true },
         services: {
           api: {
             protocol: "http",
@@ -156,7 +156,7 @@ describe("cli", () => {
       [
         "bun",
         "src/cli.ts",
-        "topology",
+        "service-map",
         "resolve",
         "--manifest",
         manifestPath,
@@ -176,5 +176,86 @@ describe("cli", () => {
 
     const written = readFileSync(outputPath, "utf8");
     expect(written).toContain("\n  \"services\": {");
+  });
+
+  test("service-map resolve accepts a structured context file", () => {
+    const workspaceRoot = createTempWorkspace();
+    const manifestPath = path.join(workspaceRoot, "env.manifest.ts");
+    const contextPath = path.join(workspaceRoot, "service-map-context.json");
+
+    writeFileSync(
+      manifestPath,
+      `export default {
+        name: "cli-context-test",
+        experimental: { serviceMap: true },
+        services: {
+          api: {
+            protocol: "http",
+            runtime: "local-process",
+            exposure: "portless",
+            preferredPort: 4312,
+            publicUrlEnv: "API_PUBLIC_URL"
+          }
+        }
+      };
+      `,
+      "utf8"
+    );
+
+    writeFileSync(
+      contextPath,
+      JSON.stringify(
+        {
+          cellName: "cell-123",
+          portless: {
+            rootName: "cell-123",
+            proxyPort: 1455,
+          },
+          services: {
+            api: {
+              preferredPort: 5512,
+            },
+          },
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+
+    const result = Bun.spawnSync(
+      [
+        "bun",
+        "src/cli.ts",
+        "service-map",
+        "resolve",
+        "--manifest",
+        manifestPath,
+        "--context",
+        contextPath,
+        "--json",
+      ],
+      {
+        cwd: "/home/aureatus/dev/projects/keystone",
+        stdout: "pipe",
+        stderr: "pipe",
+        env: process.env,
+      }
+    );
+
+    expect(result.exitCode).toBe(0);
+
+    const payload = JSON.parse(result.stdout.toString()) as {
+      services: Record<string, { connect: { port: number }; publicUrl?: string }>;
+      portlessAliases: Array<{ hostname: string; port: number }>;
+    };
+
+    expect(payload.services.api.connect.port).toBe(5512);
+    expect(payload.services.api.publicUrl).toBe("http://api.cell-123.localhost:1455");
+    expect(payload.portlessAliases[0]).toEqual({
+      service: "api",
+      hostname: "api.cell-123.localhost",
+      port: 5512,
+    });
   });
 });

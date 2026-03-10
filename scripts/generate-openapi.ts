@@ -4,15 +4,15 @@ import { fileURLToPath } from "node:url";
 
 import YAML from "yaml";
 
-import { createTopologyOpenApiDocument } from "../src/openapi/topology-contract.ts";
+import { createServiceMapOpenApiDocument } from "../src/openapi/service-map-contract.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
-const outputPath = path.join(repoRoot, "openapi", "topology.openapi.yaml");
+const outputPath = path.join(repoRoot, "openapi", "service-map.openapi.yaml");
 const checkOnly = process.argv.includes("--check");
 
-const contents = `${YAML.stringify(createTopologyOpenApiDocument())}`;
+const contents = `${YAML.stringify(createServiceMapOpenApiDocument())}`;
 
 if (checkOnly) {
   if (!existsSync(outputPath)) {

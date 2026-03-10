@@ -1,16 +1,65 @@
 openapi: 3.1.0
 info:
-  title: Keystone Topology API
+  title: Keystone Service Map API
   version: 0.1.0
-  description: Experimental API contract for resolving Keystone service topology
-    from a manifest. This schema exists so non-TypeScript consumers such as
-    Hive's Elixir backend can rely on a stable wire format even though
-    Keystone's authoring experience is TypeScript-first.
+  description: Experimental API contract for resolving a Keystone service map from
+    a manifest. This schema exists so non-TypeScript consumers such as Hive's
+    Elixir backend can rely on a stable wire format even though Keystone's
+    authoring experience is TypeScript-first.
 servers:
   - url: http://localhost:4010
 components:
   schemas:
-    ResolveTopologyRequest:
+    ServiceMapServiceContext:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        bindHost:
+          type: string
+        bindPort:
+          type: integer
+          exclusiveMinimum: 0
+        connectHost:
+          type: string
+        connectPort:
+          type: integer
+          exclusiveMinimum: 0
+        preferredPort:
+          type: integer
+          exclusiveMinimum: 0
+        publicUrl:
+          type: string
+        portlessAlias:
+          type: string
+        serviceName:
+          type: string
+    ServiceMapContext:
+      type: object
+      properties:
+        projectName:
+          type: string
+        cellId:
+          type: string
+        cellName:
+          type: string
+        worktreePath:
+          type: string
+        portless:
+          type: object
+          properties:
+            proxyPort:
+              type: integer
+              exclusiveMinimum: 0
+            https:
+              type: boolean
+            rootName:
+              type: string
+        services:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ServiceMapServiceContext"
+    ResolveServiceMapRequest:
       type: object
       properties:
         manifestPath:
@@ -23,13 +72,17 @@ components:
           description: Optional override for repository root.
         env:
           $ref: "#/components/schemas/EnvMap"
+        context:
+          allOf:
+            - $ref: "#/components/schemas/ServiceMapContext"
+            - description: Structured runtime context used to resolve the service map.
       required:
         - manifestPath
     EnvMap:
       type: object
       additionalProperties:
         type: string
-      description: Optional environment overrides applied before topology resolution.
+      description: Optional environment overrides applied before service-map resolution.
     ServiceEndpoint:
       type: object
       properties:
@@ -108,7 +161,7 @@ components:
         - service
         - hostname
         - port
-    ResolvedTopology:
+    ResolvedServiceMap:
       type: object
       properties:
         services:
@@ -139,25 +192,25 @@ components:
         - error
   parameters: {}
 paths:
-  /v1/topology/resolve:
+  /v1/service-map/resolve:
     post:
-      summary: Resolve service topology for a Keystone manifest
-      operationId: resolveTopology
+      summary: Resolve a service map for a Keystone manifest
+      operationId: resolveServiceMap
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ResolveTopologyRequest"
+              $ref: "#/components/schemas/ResolveServiceMapRequest"
       responses:
         "200":
-          description: Resolved topology
+          description: Resolved service map
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ResolvedTopology"
+                $ref: "#/components/schemas/ResolvedServiceMap"
         "400":
-          description: Invalid manifest or topology request
+          description: Invalid manifest or service-map request
           content:
             application/json:
               schema:

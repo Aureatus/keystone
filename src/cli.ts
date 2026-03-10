@@ -1,15 +1,15 @@
 #!/usr/bin/env bun
 
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { resolvedTopologySchema } from "./openapi/topology-contract.ts";
+import { resolveServiceMapRequestSchema, resolvedServiceMapSchema } from "./openapi/service-map-contract.ts";
 import {
   runClear,
   runDoctor,
   runGenerate,
   runInit,
-  runResolveTopology,
+  runResolveServiceMap,
   runScanSecrets,
 } from "./manifest.ts";
 
@@ -27,39 +27,51 @@ const hasFlag = (args: string[], flag: string): boolean => args.includes(flag);
 const renderJson = (value: unknown, pretty: boolean): string =>
   `${JSON.stringify(value, null, pretty ? 2 : undefined)}\n`;
 
-const topologyUsage =
-  "Usage: keystone topology resolve --manifest <path> [--repo-root <path>] [--json] [--output <path>] [--pretty]";
+const serviceMapUsage =
+  "Usage: keystone service-map resolve --manifest <path> [--repo-root <path>] [--context <path>] [--json] [--output <path>] [--pretty]";
+
+const readJsonFile = (filePath: string): unknown => JSON.parse(readFileSync(filePath, "utf8"));
 
 const main = async (): Promise<void> => {
   const [, , command, ...rest] = process.argv;
   const subcommand = rest[0];
-  const commandArgs = command === "topology" ? rest.slice(1) : rest;
+  const isServiceMapCommand = command === "service-map";
+  const commandArgs = isServiceMapCommand ? rest.slice(1) : rest;
   const manifestPath = readOption(rest, "--manifest");
   const repoRoot = readOption(rest, "--repo-root");
 
-  if (!command || !(command === "topology" ? subcommand : manifestPath)) {
+  if (!command || !(isServiceMapCommand ? subcommand : manifestPath)) {
     throw new Error(
-      `Usage: keystone <generate|doctor|clear|init|scan-secrets> --manifest <path> [--repo-root <path>]\n       ${topologyUsage}`
+      `Usage: keystone <generate|doctor|clear|init|scan-secrets> --manifest <path> [--repo-root <path>]\n       ${serviceMapUsage}`
     );
   }
 
-  if (command === "topology") {
+  if (isServiceMapCommand) {
     if (subcommand !== "resolve") {
-      throw new Error(`Unknown topology command: ${subcommand ?? "<missing>"}`);
+      throw new Error(`Unknown service-map command: ${subcommand ?? "<missing>"}`);
     }
 
-    const topologyManifestPath = readOption(commandArgs, "--manifest");
-    const topologyRepoRoot = readOption(commandArgs, "--repo-root");
-    if (!topologyManifestPath) {
-      throw new Error(topologyUsage);
+    const serviceMapManifestPath = readOption(commandArgs, "--manifest");
+    const serviceMapRepoRoot = readOption(commandArgs, "--repo-root");
+    const serviceMapContextPath = readOption(commandArgs, "--context");
+    if (!serviceMapManifestPath) {
+      throw new Error(serviceMapUsage);
     }
 
-    const resolvedManifestPath = path.resolve(topologyManifestPath);
-    const resolvedRepoRoot = topologyRepoRoot
-      ? path.resolve(topologyRepoRoot)
+    const resolvedManifestPath = path.resolve(serviceMapManifestPath);
+    const resolvedRepoRoot = serviceMapRepoRoot
+      ? path.resolve(serviceMapRepoRoot)
       : path.dirname(resolvedManifestPath);
-    const topology = await runResolveTopology(resolvedManifestPath, resolvedRepoRoot);
-    const payload = resolvedTopologySchema.parse(topology);
+    const request = resolveServiceMapRequestSchema.parse({
+      manifestPath: resolvedManifestPath,
+      repoRoot: resolvedRepoRoot,
+      context: serviceMapContextPath ? readJsonFile(path.resolve(serviceMapContextPath)) : undefined,
+    });
+    const serviceMap = await runResolveServiceMap(resolvedManifestPath, resolvedRepoRoot, {
+      env: request.env,
+      context: request.context,
+    });
+    const payload = resolvedServiceMapSchema.parse(serviceMap);
     const outputPath = readOption(commandArgs, "--output");
     const pretty = hasFlag(commandArgs, "--pretty") || !outputPath;
     const rendered = renderJson(payload, pretty);
