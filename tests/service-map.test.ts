@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { renderServiceEnvFile, renderServiceMapEnvFile } from "../src/service-map-render.ts";
+import { renderServiceEnvFile, renderServiceMapEnvFile, renderServiceMapOutput } from "../src/service-map-render.ts";
 import { resolveServiceMap, SERVICE_MAP_SCHEMA_VERSION } from "../src/service-map.ts";
 
 describe("service map", () => {
@@ -239,5 +239,37 @@ describe("service map", () => {
     expect(serviceMapEnvFile).toContain('API_PUBLIC_URL="http://api.render-demo.localhost:1355"');
     expect(serviceEnvFile).toContain('API_HOST="127.0.0.1"');
     expect(serviceEnvFile).toContain('API_PORT="4312"');
+  });
+
+  test("renders service-map output in env and json formats", async () => {
+    const serviceMap = await resolveServiceMap(
+      {
+        name: "render-output-demo",
+        experimental: { serviceMap: true },
+        portless: { rootName: "render-output-demo" },
+        services: {
+          api: {
+            protocol: "http",
+            runtime: "local-process",
+            exposure: "portless",
+            preferredPort: 4312,
+            hostEnv: "API_HOST",
+            publicUrlEnv: "API_PUBLIC_URL",
+          },
+        },
+      },
+      {
+        repoRoot: "/tmp/render-output-demo",
+      }
+    );
+
+    expect(serviceMap).toBeDefined();
+
+    const serviceEnv = renderServiceMapOutput(serviceMap!, "env", { service: "api" });
+    const serviceJson = renderServiceMapOutput(serviceMap!, "json", { service: "api" }, { pretty: true });
+
+    expect(serviceEnv).toContain('API_HOST="127.0.0.1"');
+    expect(serviceEnv).toContain('API_PUBLIC_URL="http://api.render-output-demo.localhost:1355"');
+    expect(serviceJson).toContain('"API_PUBLIC_URL": "http://api.render-output-demo.localhost:1355"');
   });
 });

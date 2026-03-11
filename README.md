@@ -6,6 +6,8 @@ Keystone now also includes an experimental service-map layer for resolving local
 
 It is still marked experimental because the service-map contract has not yet been proven against a real consumer like Hive, and the public schema may still tighten as we validate real orchestration flows.
 
+The package now builds to `dist/` with `tsup`, so npm/file installs consume compiled library and CLI artifacts rather than raw source files.
+
 For consumers outside TypeScript, Keystone should be treated as having two contracts:
 
 - a TypeScript SDK exported from `@aureatus/keystone`
@@ -34,6 +36,8 @@ keystone scan-secrets --manifest env.manifest.ts
 keystone clear --manifest env.manifest.ts
 keystone service-map resolve --manifest env.manifest.ts --json
 keystone service-map resolve --manifest env.manifest.ts --context service-map.context.json --json
+keystone service-map render --manifest env.manifest.ts --service api
+keystone service-map render --manifest env.manifest.ts --service api --format json --output api-env.json
 keystone service-map resolve --manifest env.manifest.ts --output service-map.json
 keystone service-map resolve --manifest env.manifest.ts --output service-map.pretty.json --pretty
 ```
@@ -135,12 +139,19 @@ keystone service-map resolve --manifest env.manifest.ts --json
 
 That command prints a JSON payload shaped like `ResolvedServiceMap` from the generated OpenAPI contract.
 
+If you want a concrete env projection instead of the full resolved object, use `service-map render`.
+
 Output options:
 
 - `--context <path>` loads a structured JSON context file for cell/runtime-specific service-map inputs
 - `--json` prints the resolved service map to stdout
 - `--output <path>` writes the resolved service map to a file
 - `--pretty` pretty-prints JSON when writing to a file
+
+Render options:
+
+- `--service <name>` renders only one service's env projection
+- `--format env|json` chooses env-file or JSON output; default is `env`
 
 Example output from the smoke fixture is checked in at `fixtures/smoke-workspace/service-map.example.json`.
 An example structured context file is checked in at `fixtures/smoke-workspace/service-map.context.example.json`.
@@ -285,6 +296,7 @@ Expected setup outputs:
 ```bash
 mise install
 bun install
+bun run build
 bun run openapi:generate
 bun test
 bun run check

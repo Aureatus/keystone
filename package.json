@@ -14,24 +14,34 @@
   "type": "module",
   "files": [
     "README.md",
+    "LICENSE",
+    "dist",
     "openapi",
-    "src",
     "tsconfig.json"
   ],
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./openapi/service-map.openapi.yaml": "./openapi/service-map.openapi.yaml",
+    "./package.json": "./package.json"
   },
   "bin": {
-    "keystone": "./src/cli.ts"
+    "keystone": "./dist/cli.js"
   },
   "scripts": {
+    "build": "tsup",
     "fixtures:update": "bun scripts/update-fixtures.ts",
     "openapi:generate": "bun scripts/generate-openapi.ts",
     "openapi:check": "bun scripts/generate-openapi.ts --check",
+    "prepare": "bun run build",
+    "prepack": "bun run build",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "smoke": "bun scripts/smoke.ts",
+    "smoke": "bun run build && bun scripts/smoke.ts",
     "check": "bun run typecheck && bun run openapi:check && bun run test && bun run smoke"
   },
   "keywords": [
@@ -49,7 +59,12 @@
   },
   "devDependencies": {
     "@types/node": "^24.5.2",
+    "tsup": "^8.5.0",
     "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20",
+    "bun": ">=1.3.5"
   },
   "packageManager": "bun@1.3.5"
 }

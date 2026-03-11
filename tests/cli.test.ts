@@ -258,4 +258,106 @@ describe("cli", () => {
       port: 5512,
     });
   });
+
+  test("service-map render prints a single service env projection", () => {
+    const workspaceRoot = createTempWorkspace();
+    const manifestPath = path.join(workspaceRoot, "env.manifest.ts");
+
+    writeFileSync(
+      manifestPath,
+      `export default {
+        name: "cli-render-test",
+        experimental: { serviceMap: true },
+        services: {
+          api: {
+            protocol: "http",
+            runtime: "local-process",
+            exposure: "portless",
+            preferredPort: 4312,
+            hostEnv: "API_HOST",
+            publicUrlEnv: "API_PUBLIC_URL"
+          }
+        }
+      };
+      `,
+      "utf8"
+    );
+
+    const result = Bun.spawnSync(
+      [
+        "bun",
+        "src/cli.ts",
+        "service-map",
+        "render",
+        "--manifest",
+        manifestPath,
+        "--service",
+        "api",
+      ],
+      {
+        cwd: "/home/aureatus/dev/projects/keystone",
+        stdout: "pipe",
+        stderr: "pipe",
+        env: process.env,
+      }
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.toString()).toContain('API_HOST="127.0.0.1"');
+    expect(result.stdout.toString()).toContain('API_PUBLIC_URL="http://api.cli-render-test.localhost:1355"');
+  });
+
+  test("service-map render writes json output for a single service", () => {
+    const workspaceRoot = createTempWorkspace();
+    const manifestPath = path.join(workspaceRoot, "env.manifest.ts");
+    const outputPath = path.join(workspaceRoot, "service-env.json");
+
+    writeFileSync(
+      manifestPath,
+      `export default {
+        name: "cli-render-json-test",
+        experimental: { serviceMap: true },
+        services: {
+          api: {
+            protocol: "http",
+            runtime: "local-process",
+            exposure: "portless",
+            preferredPort: 4312,
+            hostEnv: "API_HOST",
+            publicUrlEnv: "API_PUBLIC_URL"
+          }
+        }
+      };
+      `,
+      "utf8"
+    );
+
+    const result = Bun.spawnSync(
+      [
+        "bun",
+        "src/cli.ts",
+        "service-map",
+        "render",
+        "--manifest",
+        manifestPath,
+        "--service",
+        "api",
+        "--format",
+        "json",
+        "--output",
+        outputPath,
+      ],
+      {
+        cwd: "/home/aureatus/dev/projects/keystone",
+        stdout: "pipe",
+        stderr: "pipe",
+        env: process.env,
+      }
+    );
+
+    expect(result.exitCode).toBe(0);
+    const payload = JSON.parse(readFileSync(outputPath, "utf8")) as Record<string, string>;
+    expect(payload.API_HOST).toBe("127.0.0.1");
+    expect(payload.API_PUBLIC_URL).toBe("http://api.cli-render-json-test.localhost:1355");
+  });
 });

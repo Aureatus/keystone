@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -12,6 +12,7 @@ import {
   runResolveServiceMap,
   runScanSecrets,
 } from "./manifest.ts";
+import { renderServiceMapOutput } from "./service-map-render.ts";
 
 const readOption = (args: string[], option: string): string | undefined => {
   const index = args.indexOf(option);
@@ -28,9 +29,30 @@ const renderJson = (value: unknown, pretty: boolean): string =>
   `${JSON.stringify(value, null, pretty ? 2 : undefined)}\n`;
 
 const serviceMapUsage =
-  "Usage: keystone service-map resolve --manifest <path> [--repo-root <path>] [--context <path>] [--json] [--output <path>] [--pretty]";
+  "Usage: keystone service-map resolve --manifest <path> [--repo-root <path>] [--context <path>] [--json] [--output <path>] [--pretty]\n       keystone service-map render --manifest <path> [--repo-root <path>] [--context <path>] [--service <name>] [--format env|json] [--output <path>] [--pretty]";
 
 const readJsonFile = (filePath: string): unknown => JSON.parse(readFileSync(filePath, "utf8"));
+
+const resolveServiceMapRequestFromArgs = (commandArgs: string[]) => {
+  const serviceMapManifestPath = readOption(commandArgs, "--manifest");
+  const serviceMapRepoRoot = readOption(commandArgs, "--repo-root");
+  const serviceMapContextPath = readOption(commandArgs, "--context");
+  if (!serviceMapManifestPath) {
+    throw new Error(serviceMapUsage);
+  }
+
+  const resolvedManifestPath = path.resolve(serviceMapManifestPath);
+  const resolvedRepoRoot = serviceMapRepoRoot
+    ? path.resolve(serviceMapRepoRoot)
+    : path.dirname(resolvedManifestPath);
+  const request = resolveServiceMapRequestSchema.parse({
+    manifestPath: resolvedManifestPath,
+    repoRoot: resolvedRepoRoot,
+    context: serviceMapContextPath ? readJsonFile(path.resolve(serviceMapContextPath)) : undefined,
+  });
+
+  return { request, resolvedManifestPath, resolvedRepoRoot };
+};
 
 const main = async (): Promise<void> => {
   const [, , command, ...rest] = process.argv;
@@ -47,34 +69,46 @@ const main = async (): Promise<void> => {
   }
 
   if (isServiceMapCommand) {
-    if (subcommand !== "resolve") {
+    if (subcommand !== "resolve" && subcommand !== "render") {
       throw new Error(`Unknown service-map command: ${subcommand ?? "<missing>"}`);
     }
 
-    const serviceMapManifestPath = readOption(commandArgs, "--manifest");
-    const serviceMapRepoRoot = readOption(commandArgs, "--repo-root");
-    const serviceMapContextPath = readOption(commandArgs, "--context");
-    if (!serviceMapManifestPath) {
-      throw new Error(serviceMapUsage);
-    }
-
-    const resolvedManifestPath = path.resolve(serviceMapManifestPath);
-    const resolvedRepoRoot = serviceMapRepoRoot
-      ? path.resolve(serviceMapRepoRoot)
-      : path.dirname(resolvedManifestPath);
-    const request = resolveServiceMapRequestSchema.parse({
-      manifestPath: resolvedManifestPath,
-      repoRoot: resolvedRepoRoot,
-      context: serviceMapContextPath ? readJsonFile(path.resolve(serviceMapContextPath)) : undefined,
-    });
+    const { request, resolvedManifestPath, resolvedRepoRoot } = resolveServiceMapRequestFromArgs(commandArgs);
     const serviceMap = await runResolveServiceMap(resolvedManifestPath, resolvedRepoRoot, {
       env: request.env,
       context: request.context,
     });
-    const payload = resolvedServiceMapSchema.parse(serviceMap);
+
+    if (subcommand === "resolve") {
+      const payload = resolvedServiceMapSchema.parse(serviceMap);
+      const outputPath = readOption(commandArgs, "--output");
+      const pretty = hasFlag(commandArgs, "--pretty") || !outputPath;
+      const rendered = renderJson(payload, pretty);
+
+      if (outputPath) {
+        const resolvedOutputPath = path.resolve(outputPath);
+        writeFileSync(resolvedOutputPath, rendered, "utf8");
+        process.stdout.write(`Wrote ${resolvedOutputPath}\n`);
+        return;
+      }
+
+      process.stdout.write(rendered);
+      return;
+    }
+
+    const formatOption = readOption(commandArgs, "--format") ?? "env";
+    if (formatOption !== "env" && formatOption !== "json") {
+      throw new Error(`Unsupported render format: ${formatOption}`);
+    }
+
     const outputPath = readOption(commandArgs, "--output");
-    const pretty = hasFlag(commandArgs, "--pretty") || !outputPath;
-    const rendered = renderJson(payload, pretty);
+    const pretty = hasFlag(commandArgs, "--pretty") || formatOption === "json";
+    const rendered = renderServiceMapOutput(
+      serviceMap,
+      formatOption,
+      { service: readOption(commandArgs, "--service") },
+      { pretty }
+    );
 
     if (outputPath) {
       const resolvedOutputPath = path.resolve(outputPath);
