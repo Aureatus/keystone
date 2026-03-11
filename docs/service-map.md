@@ -4,6 +4,8 @@ This document describes the planned service-level model for Keystone.
 
 Status: the first experimental slice is now implemented in Keystone for manifest-level endpoint resolution and env generation. Runtime orchestration and Portless alias execution still belong outside Keystone.
 
+It remains experimental mainly because the contract has not yet been exercised by a real external orchestrator. The types, JSON shape, and helper APIs are now tested, but we still expect to learn from the first Hive integration.
+
 For cross-runtime adoption, treat Keystone as having two public surfaces:
 
 - the TypeScript SDK exported from `src/`
@@ -175,6 +177,22 @@ That is not contradictory. It is the intended split between internal connectivit
 
 Keystone should work cleanly with both process-based and Docker-based orchestration.
 
+Keystone now also includes a small helper for Compose-style runtime data:
+
+```ts
+createServiceMapContextFromDockerCompose(manifest, {
+  projectName: "my-stack",
+  services: {
+    api: {
+      serviceName: "api",
+      ports: [{ containerPort: 8080, publishedPort: 18080 }],
+    },
+  },
+})
+```
+
+That helper converts discovered Docker/Compose runtime information into a `ServiceMapContext` that can be passed straight into `resolveServiceMap(...)`.
+
 ### Local processes
 
 Example:
@@ -227,6 +245,8 @@ The implementation direction is now:
 - optionally render env maps or env files from that resolved service map via helper functions
 
 This keeps the core model structured for orchestrators like Hive while still supporting traditional env-file workflows.
+
+Additional mock consumer repos live under `fixtures/mock-repos/` and are exercised in tests so the service-map model is not only validated against a single smoke fixture.
 
 That would let Hive:
 

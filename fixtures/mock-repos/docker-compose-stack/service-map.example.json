@@ -1,0 +1,66 @@
+{
+  "services": {
+    "api": {
+      "name": "api",
+      "protocol": "http",
+      "runtime": "docker-published",
+      "exposure": "direct",
+      "connect": {
+        "host": "127.0.0.1",
+        "port": 18080
+      },
+      "internalUrl": "http://127.0.0.1:18080",
+      "publicUrl": "http://127.0.0.1:18080",
+      "env": {
+        "API_HOST": "127.0.0.1",
+        "API_PORT": "18080",
+        "API_PUBLIC_URL": "http://127.0.0.1:18080"
+      }
+    },
+    "postgres": {
+      "name": "postgres",
+      "protocol": "postgres",
+      "runtime": "docker-network",
+      "exposure": "direct",
+      "connect": {
+        "host": "postgres",
+        "port": 5432
+      },
+      "internalUrl": "postgres://postgres:5432",
+      "publicUrl": "postgres://postgres:5432",
+      "env": {
+        "PGHOST": "postgres",
+        "PGPORT": "5432",
+        "DATABASE_URL": "postgres://postgres:5432"
+      }
+    },
+    "worker": {
+      "name": "worker",
+      "protocol": "tcp",
+      "runtime": "docker-network",
+      "exposure": "direct",
+      "connect": {
+        "host": "worker",
+        "port": 9000
+      },
+      "env": {
+        "WORKER_HOST": "worker",
+        "WORKER_PORT": "9000",
+        "DATABASE_URL_FROM_BINDING": "postgres://postgres:5432"
+      }
+    }
+  },
+  "env": {
+    "API_HOST": "127.0.0.1",
+    "API_PORT": "18080",
+    "API_PUBLIC_URL": "http://127.0.0.1:18080",
+    "PGHOST": "postgres",
+    "PGPORT": "5432",
+    "DATABASE_URL": "postgres://postgres:5432",
+    "WORKER_HOST": "worker",
+    "WORKER_PORT": "9000",
+    "DATABASE_URL_FROM_BINDING": "postgres://postgres:5432"
+  },
+  "warnings": [],
+  "portlessAliases": []
+}

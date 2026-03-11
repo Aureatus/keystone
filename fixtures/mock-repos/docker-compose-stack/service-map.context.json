@@ -1,0 +1,17 @@
+{
+  "projectName": "docker-compose-stack",
+  "services": {
+    "api": {
+      "connectHost": "127.0.0.1",
+      "connectPort": 18080
+    },
+    "postgres": {
+      "connectHost": "postgres",
+      "connectPort": 5432
+    },
+    "worker": {
+      "connectHost": "worker",
+      "connectPort": 9000
+    }
+  }
+}

@@ -4,6 +4,8 @@ TypeScript-first env tooling for repos that want one manifest-driven way to load
 
 Keystone now also includes an experimental service-map layer for resolving local-process, Docker-style, and Portless-exposed service endpoints before env files are generated.
 
+It is still marked experimental because the service-map contract has not yet been proven against a real consumer like Hive, and the public schema may still tighten as we validate real orchestration flows.
+
 For consumers outside TypeScript, Keystone should be treated as having two contracts:
 
 - a TypeScript SDK exported from `@aureatus/keystone`
@@ -93,6 +95,35 @@ bun run openapi:generate
 bun run openapi:check
 ```
 
+Docker Compose helper:
+
+```ts
+import {
+  createServiceMapContextFromDockerCompose,
+  resolveServiceMap,
+} from "@aureatus/keystone";
+
+const context = createServiceMapContextFromDockerCompose(manifest, {
+  projectName: "my-stack",
+  services: {
+    api: {
+      serviceName: "api",
+      ports: [{ containerPort: 8080, publishedPort: 18080 }],
+    },
+    postgres: {
+      serviceName: "postgres",
+      networkHost: "postgres",
+      ports: [{ containerPort: 5432, publishedPort: 15432 }],
+    },
+  },
+});
+
+const serviceMap = await resolveServiceMap(manifest, {
+  repoRoot: process.cwd(),
+  context,
+});
+```
+
 For cross-runtime consumers that do not want to call the TypeScript API directly, Keystone also exposes a one-shot CLI resolver:
 
 ```bash
@@ -111,6 +142,11 @@ Output options:
 Example output from the smoke fixture is checked in at `fixtures/smoke-workspace/service-map.example.json`.
 An example structured context file is checked in at `fixtures/smoke-workspace/service-map.context.example.json`.
 A context-resolved output example is checked in at `fixtures/smoke-workspace/service-map.context.resolved.json`.
+
+Additional mock-repo fixtures live under `fixtures/mock-repos/` and are covered by tests. They include:
+
+- `fixtures/mock-repos/portless-web-api`
+- `fixtures/mock-repos/docker-compose-stack`
 
 SDK usage:
 
