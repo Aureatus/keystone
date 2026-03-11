@@ -87,6 +87,7 @@ export const portlessAliasPlanSchema = z
 
 export const resolvedServiceMapSchema = z
   .object({
+    schemaVersion: z.string(),
     services: z.record(z.string(), resolvedServiceSchema),
     env: envMapSchema,
     warnings: z.array(z.string()),

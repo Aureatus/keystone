@@ -164,6 +164,8 @@ components:
     ResolvedServiceMap:
       type: object
       properties:
+        schemaVersion:
+          type: string
         services:
           type: object
           additionalProperties:
@@ -179,6 +181,7 @@ components:
           items:
             $ref: "#/components/schemas/PortlessAliasPlan"
       required:
+        - schemaVersion
         - services
         - env
         - warnings

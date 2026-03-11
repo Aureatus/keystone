@@ -91,9 +91,12 @@ The intended long-term split is:
 Useful commands:
 
 ```bash
+bun run fixtures:update
 bun run openapi:generate
 bun run openapi:check
 ```
+
+Every resolved service map now includes a `schemaVersion` field so external consumers like Hive can guard against contract changes.
 
 Docker Compose helper:
 
@@ -148,6 +151,8 @@ Additional mock-repo fixtures live under `fixtures/mock-repos/` and are covered 
 - `fixtures/mock-repos/portless-web-api`
 - `fixtures/mock-repos/docker-compose-stack`
 - `fixtures/mock-repos/mixed-fullstack`
+
+`bun run fixtures:update` regenerates the checked-in `service-map.example.json` files for the smoke fixture and all mock repos.
 
 SDK usage:
 

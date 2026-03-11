@@ -13,6 +13,7 @@ For cross-runtime adoption, treat Keystone as having two public surfaces:
 
 The OpenAPI contract is the intended bridge for consumers like Hive's Elixir backend.
 It should be generated from TypeScript-first Zod schemas rather than maintained by hand.
+Each resolved service map includes a `schemaVersion` so consumers can version-check the contract explicitly.
 
 It is intentionally explicit about defaults and overrides so users can understand what Keystone will infer, when it will infer it, and how to opt out.
 
@@ -253,6 +254,8 @@ Current mock fixtures cover:
 - Portless-only local HTTP services
 - Docker Compose-style published and network-only services
 - mixed fullstack cases with Portless web, docker-published API/docs, and a Docker-network database
+
+Use `bun run fixtures:update` to regenerate the checked-in service-map example JSON for the smoke fixture and all mock repos after resolver changes.
 
 That would let Hive:
 

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { renderServiceEnvFile, renderServiceMapEnvFile } from "../src/service-map-render.ts";
-import { resolveServiceMap } from "../src/service-map.ts";
+import { resolveServiceMap, SERVICE_MAP_SCHEMA_VERSION } from "../src/service-map.ts";
 
 describe("service map", () => {
   test("resolves local, portless, and docker-network services", async () => {
@@ -49,6 +49,7 @@ describe("service map", () => {
     );
 
     expect(serviceMap).toBeDefined();
+    expect(serviceMap?.schemaVersion).toBe(SERVICE_MAP_SCHEMA_VERSION);
     expect(serviceMap?.services.api.connect.host).toBe("127.0.0.1");
     expect(serviceMap?.services.api.connect.port).toBe(4312);
     expect(serviceMap?.services.api.publicUrl).toBe("http://api.demo.localhost:1355");
@@ -162,6 +163,44 @@ describe("service map", () => {
     expect(serviceMap?.services.postgres.connect).toEqual({ host: "postgres-service", port: 6432 });
     expect(serviceMap?.env.PGHOST).toBe("postgres-service");
     expect(serviceMap?.env.PGPORT).toBe("6432");
+  });
+
+  test("supports cyclic cross-service bindings without startup semantics", async () => {
+    const serviceMap = await resolveServiceMap(
+      {
+        name: "cyclic-demo",
+        experimental: { serviceMap: true },
+        portless: { rootName: "cyclic-demo", proxyPort: 1355 },
+        services: {
+          web: {
+            protocol: "http",
+            runtime: "local-process",
+            exposure: "portless",
+            preferredPort: 4312,
+            publicUrlEnv: "WEB_PUBLIC_URL",
+            bindings: [{ env: "PUBLIC_API_URL", service: "api", from: "publicUrl" }],
+          },
+          api: {
+            protocol: "http",
+            runtime: "local-process",
+            exposure: "portless",
+            preferredPort: 4313,
+            publicUrlEnv: "API_PUBLIC_URL",
+            bindings: [{ env: "WEB_ORIGIN", service: "web", from: "publicUrl" }],
+          },
+        },
+      },
+      {
+        repoRoot: "/tmp/cyclic-demo",
+      }
+    );
+
+    expect(serviceMap?.services.web.publicUrl).toBe("http://web.cyclic-demo.localhost:1355");
+    expect(serviceMap?.services.api.publicUrl).toBe("http://api.cyclic-demo.localhost:1355");
+    expect(serviceMap?.services.web.env.PUBLIC_API_URL).toBe("http://api.cyclic-demo.localhost:1355");
+    expect(serviceMap?.services.api.env.WEB_ORIGIN).toBe("http://web.cyclic-demo.localhost:1355");
+    expect(serviceMap?.env.PUBLIC_API_URL).toBe("http://api.cyclic-demo.localhost:1355");
+    expect(serviceMap?.env.WEB_ORIGIN).toBe("http://web.cyclic-demo.localhost:1355");
   });
 
   test("renders service-map and service env files from resolved service map", async () => {

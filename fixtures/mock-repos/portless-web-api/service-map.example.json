@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "0.1.0",
+  "services": {
+    "api": {
+      "name": "api",
+      "protocol": "http",
+      "runtime": "local-process",
+      "exposure": "portless",
+      "bind": {
+        "host": "127.0.0.1",
+        "port": 4312
+      },
+      "connect": {
+        "host": "127.0.0.1",
+        "port": 4312
+      },
+      "internalUrl": "http://127.0.0.1:4312",
+      "publicUrl": "http://api.portless-web-api.localhost:1355",
+      "env": {
+        "API_HOST": "127.0.0.1",
+        "API_PORT": "4312",
+        "API_PUBLIC_URL": "http://api.portless-web-api.localhost:1355"
+      }
+    },
+    "web": {
+      "name": "web",
+      "protocol": "http",
+      "runtime": "local-process",
+      "exposure": "portless",
+      "bind": {
+        "host": "127.0.0.1",
+        "port": 4313
+      },
+      "connect": {
+        "host": "127.0.0.1",
+        "port": 4313
+      },
+      "internalUrl": "http://127.0.0.1:4313",
+      "publicUrl": "http://web.portless-web-api.localhost:1355",
+      "env": {
+        "WEB_PUBLIC_URL": "http://web.portless-web-api.localhost:1355",
+        "PUBLIC_API_URL": "http://api.portless-web-api.localhost:1355"
+      }
+    }
+  },
+  "env": {
+    "API_HOST": "127.0.0.1",
+    "API_PORT": "4312",
+    "API_PUBLIC_URL": "http://api.portless-web-api.localhost:1355",
+    "WEB_PUBLIC_URL": "http://web.portless-web-api.localhost:1355",
+    "PUBLIC_API_URL": "http://api.portless-web-api.localhost:1355"
+  },
+  "warnings": [],
+  "portlessAliases": [
+    {
+      "service": "api",
+      "hostname": "api.portless-web-api.localhost",
+      "port": 4312
+    },
+    {
+      "service": "web",
+      "hostname": "web.portless-web-api.localhost",
+      "port": 4313
+    }
+  ]
+}

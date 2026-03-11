@@ -99,6 +99,8 @@ export type PortlessAliasPlan = {
   port: number;
 };
 
+export const SERVICE_MAP_SCHEMA_VERSION = "0.1.0" as const;
+
 export type ResolvedService = {
   name: string;
   protocol: ServiceProtocol;
@@ -118,6 +120,7 @@ export type ResolvedService = {
 };
 
 export type ResolvedServiceMap = {
+  schemaVersion: typeof SERVICE_MAP_SCHEMA_VERSION;
   services: Record<string, ResolvedService>;
   env: EnvMap;
   warnings: string[];
@@ -463,7 +466,13 @@ export const resolveServiceMap = async (
     }
   }
 
-  return { services, env, warnings, portlessAliases };
+  return {
+    schemaVersion: SERVICE_MAP_SCHEMA_VERSION,
+    services,
+    env,
+    warnings,
+    portlessAliases,
+  };
 };
 
 export const renderServiceMapEnv = (serviceMap: ResolvedServiceMap): EnvMap => ({ ...serviceMap.env });
