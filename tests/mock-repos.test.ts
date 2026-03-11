@@ -67,4 +67,20 @@ describe("mock repos", () => {
     const serviceMap = await runResolveServiceMap(manifestPath, path.dirname(manifestPath), { context });
     expect(serviceMap).toEqual(JSON.parse(readFileSync(expectedPath, "utf8")));
   });
+
+  test("resolves the mixed fullstack fixture with portless and docker-published services", async () => {
+    const manifestPath = path.join(fixtureRoot, "mixed-fullstack", "env.manifest.ts");
+    const contextPath = path.join(fixtureRoot, "mixed-fullstack", "service-map.context.json");
+    const expectedPath = path.join(fixtureRoot, "mixed-fullstack", "service-map.example.json");
+    const context = JSON.parse(readFileSync(contextPath, "utf8")) as Parameters<typeof runResolveServiceMap>[2]["context"];
+
+    const serviceMap = await runResolveServiceMap(manifestPath, path.dirname(manifestPath), { context });
+
+    expect(serviceMap?.services.web.publicUrl).toBe("http://web.feature-auth.localhost:1455");
+    expect(serviceMap?.services.api.publicUrl).toBe("http://api.feature-auth.localhost:1455");
+    expect(serviceMap?.services.docs.publicUrl).toBe("http://127.0.0.1:14173");
+    expect(serviceMap?.env.DATABASE_URL).toBe("postgres://postgres:5432");
+    expect(serviceMap?.env.PUBLIC_API_URL).toBe("http://api.feature-auth.localhost:1455");
+    expect(serviceMap).toEqual(JSON.parse(readFileSync(expectedPath, "utf8")));
+  });
 });

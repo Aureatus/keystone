@@ -1,0 +1,101 @@
+{
+  "services": {
+    "web": {
+      "name": "web",
+      "protocol": "http",
+      "runtime": "local-process",
+      "exposure": "portless",
+      "bind": {
+        "host": "127.0.0.1",
+        "port": 5513
+      },
+      "connect": {
+        "host": "127.0.0.1",
+        "port": 5513
+      },
+      "internalUrl": "http://127.0.0.1:5513",
+      "publicUrl": "http://web.feature-auth.localhost:1455",
+      "env": {
+        "WEB_PUBLIC_URL": "http://web.feature-auth.localhost:1455",
+        "PUBLIC_API_URL": "http://api.feature-auth.localhost:1455",
+        "PUBLIC_DOCS_URL": "http://127.0.0.1:14173"
+      }
+    },
+    "api": {
+      "name": "api",
+      "protocol": "http",
+      "runtime": "docker-published",
+      "exposure": "portless",
+      "connect": {
+        "host": "127.0.0.1",
+        "port": 18080
+      },
+      "internalUrl": "http://127.0.0.1:18080",
+      "publicUrl": "http://api.feature-auth.localhost:1455",
+      "env": {
+        "API_HOST": "127.0.0.1",
+        "API_PORT": "18080",
+        "API_PUBLIC_URL": "http://api.feature-auth.localhost:1455",
+        "DATABASE_URL": "postgres://postgres:5432"
+      }
+    },
+    "postgres": {
+      "name": "postgres",
+      "protocol": "postgres",
+      "runtime": "docker-network",
+      "exposure": "direct",
+      "connect": {
+        "host": "postgres",
+        "port": 5432
+      },
+      "internalUrl": "postgres://postgres:5432",
+      "publicUrl": "postgres://postgres:5432",
+      "env": {
+        "PGHOST": "postgres",
+        "PGPORT": "5432",
+        "POSTGRES_INTERNAL_URL": "postgres://postgres:5432"
+      }
+    },
+    "docs": {
+      "name": "docs",
+      "protocol": "http",
+      "runtime": "docker-published",
+      "exposure": "direct",
+      "connect": {
+        "host": "127.0.0.1",
+        "port": 14173
+      },
+      "internalUrl": "http://127.0.0.1:14173",
+      "publicUrl": "http://127.0.0.1:14173",
+      "env": {
+        "DOCS_PUBLIC_URL": "http://127.0.0.1:14173"
+      }
+    }
+  },
+  "env": {
+    "WEB_PUBLIC_URL": "http://web.feature-auth.localhost:1455",
+    "API_HOST": "127.0.0.1",
+    "API_PORT": "18080",
+    "API_PUBLIC_URL": "http://api.feature-auth.localhost:1455",
+    "PGHOST": "postgres",
+    "PGPORT": "5432",
+    "POSTGRES_INTERNAL_URL": "postgres://postgres:5432",
+    "DOCS_PUBLIC_URL": "http://127.0.0.1:14173",
+    "PUBLIC_API_URL": "http://api.feature-auth.localhost:1455",
+    "PUBLIC_DOCS_URL": "http://127.0.0.1:14173",
+    "DATABASE_URL": "postgres://postgres:5432"
+  },
+  "warnings": [],
+  "portlessAliases": [
+    {
+      "service": "web",
+      "hostname": "web.feature-auth.localhost",
+      "port": 5513
+    },
+    {
+      "service": "api",
+      "hostname": "api.feature-auth.localhost",
+      "port": 18080
+    }
+  ]
+}

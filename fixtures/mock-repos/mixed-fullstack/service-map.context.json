@@ -1,0 +1,27 @@
+{
+  "projectName": "mixed-fullstack",
+  "cellName": "feature-auth",
+  "portless": {
+    "rootName": "feature-auth",
+    "proxyPort": 1455
+  },
+  "services": {
+    "api": {
+      "connectHost": "127.0.0.1",
+      "connectPort": 18080,
+      "portlessAlias": "api.feature-auth"
+    },
+    "postgres": {
+      "connectHost": "postgres",
+      "connectPort": 5432
+    },
+    "docs": {
+      "connectHost": "127.0.0.1",
+      "connectPort": 14173
+    },
+    "web": {
+      "preferredPort": 5513,
+      "portlessAlias": "web.feature-auth"
+    }
+  }
+}

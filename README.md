@@ -147,6 +147,7 @@ Additional mock-repo fixtures live under `fixtures/mock-repos/` and are covered 
 
 - `fixtures/mock-repos/portless-web-api`
 - `fixtures/mock-repos/docker-compose-stack`
+- `fixtures/mock-repos/mixed-fullstack`
 
 SDK usage:
 

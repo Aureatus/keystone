@@ -248,6 +248,12 @@ This keeps the core model structured for orchestrators like Hive while still sup
 
 Additional mock consumer repos live under `fixtures/mock-repos/` and are exercised in tests so the service-map model is not only validated against a single smoke fixture.
 
+Current mock fixtures cover:
+
+- Portless-only local HTTP services
+- Docker Compose-style published and network-only services
+- mixed fullstack cases with Portless web, docker-published API/docs, and a Docker-network database
+
 That would let Hive:
 
 1. create a worktree cell
